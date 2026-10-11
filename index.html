@@ -58,14 +58,7 @@ a{color:var(--accent)}
 
 main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;max-width:1320px;width:100%}
 .top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:18px}
-.cmd{position:relative;flex:1 1 380px;max-width:620px}
-.cmd .in{display:flex;align-items:center;gap:10px;border:1px solid var(--line2);border-radius:12px;background:rgba(19,26,42,.85);padding:0 12px;transition:border-color .15s,box-shadow .15s}
-.cmd .in:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft),0 0 30px rgba(111,227,245,.12)}
-.cmd .prompt{font-family:var(--f-mono);color:var(--accent);font-weight:600}
-.cmd input{flex:1;min-width:0;border:0;background:none;padding:11px 0;outline:none}
 .kbd{font-family:var(--f-mono);font-size:.7rem;color:var(--ink3);border:1px solid var(--line2);border-radius:6px;padding:1px 6px;white-space:nowrap}
-.cmd .hint{font-size:.78rem;color:var(--ink3);margin-top:5px;min-height:1.2em;padding-left:4px}
-.cmd .hint b{color:var(--ink2);font-weight:600}
 
 .grid{display:grid;gap:16px;grid-template-columns:repeat(12,minmax(0,1fr))}
 .s12{grid-column:span 12}.s8{grid-column:span 8}.s7{grid-column:span 7}.s6{grid-column:span 6}.s5{grid-column:span 5}.s4{grid-column:span 4}
@@ -119,6 +112,18 @@ main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;
 .check:hover{border-color:var(--accent)}
 .check:checked{background:var(--accent);border-color:var(--accent);box-shadow:0 0 12px rgba(111,227,245,.5)}
 .check:checked::after{content:"";width:10px;height:5px;border:2px solid var(--on-accent);border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.lh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.lh h2{margin:0;font-size:1rem}.lh .cnt{font-family:var(--f-mono);color:var(--ink3);font-weight:500;margin-left:6px;font-size:.85rem}
+.plus{width:34px;height:34px;border-radius:10px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:1.25rem;line-height:1;cursor:pointer;display:grid;place-items:center;flex:none;transition:all .15s}
+.plus:hover,.plus[aria-expanded="true"]{background:var(--accent);color:var(--on-accent);box-shadow:0 0 16px rgba(111,227,245,.4)}
+.addbox{padding:12px 0 6px;border-bottom:1px solid var(--line)}.addbox .inline{margin:0}
+.trow{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.trow:first-child{border-top:0}
+.trow .body{flex:1;min-width:0;overflow-wrap:anywhere}.trow .title{font-weight:500}.trow .meta{font-size:.74rem;color:var(--ink3);display:flex;gap:8px;flex-wrap:wrap;margin-top:3px}
+.trow .due{font-family:var(--f-mono);font-size:.8rem;color:var(--ink2);white-space:nowrap;flex:none;text-align:right;min-width:74px}
+.trow .due.warn{color:var(--warn)}.trow .due.crit{color:#ff8a82}.trow .due.none{color:var(--ink3)}
+.trow.done .title{text-decoration:line-through;color:var(--ink3)}
+.minus{width:30px;height:30px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink2);font-size:1.15rem;line-height:1;cursor:pointer;flex:none;display:grid;place-items:center}
+.minus:hover{border-color:var(--crit);color:#ff8a82}
 .x{border:0;background:none;color:var(--ink3);cursor:pointer;padding:2px 6px;border-radius:6px;font-size:.85rem}
 .x:hover{background:var(--panel2);color:var(--crit)}
 .flag{color:var(--serious);font-weight:700}
@@ -262,6 +267,7 @@ const COLS=["courses","events","tasks","steps","notes","digests","literature","t
 const SEM_START=new Date(2026,9,1), SEM_END=new Date(2027,1,15);
 const S={}; COLS.forEach(c=>S[c]=[]);
 let ringsDone=false, db=null, loaded=false, view="heute", courseId=null, taskFilter="offen", taskCourse="", noteCourse="", tlRange="sem";
+const addOpen={task:false,note:false};
 const F={course:"",len:25,left:25*60,running:false,started:null,int:null};
 try{const v=localStorage.getItem("sb-view"); if(v&&VIEWS.some(x=>x[0]===v)) view=v; const r=localStorage.getItem("sb-tl"); if(r==="sem"||r==="wk") tlRange=r;}catch(e){}
 
@@ -311,44 +317,6 @@ async function write(fn,ok,t){
 const add=(c,data,msg)=>write(()=>sb.from(c).insert(toRow(c,data)),msg,c);
 const upd=(c,id,data,msg)=>write(()=>sb.from(c).update(toRow(c,data)).eq("id",id),msg,c);
 const del=(c,id,msg)=>write(()=>sb.from(c).delete().eq("id",id),msg,c);
-/* ---------- Schnelleingabe ---------- */
-const KEYS=[["m11",["research","data mining","analytics","greiner","m 1.1","m1.1"]],["m13",["innovation company","company","habelt","intrapreneur","m 1.3","m1.3"]],["m14",["process","prozess","günzel","projektstudie","m 1.4","m1.4"]],["m15",["new business","nbd","business development","slamka","m 1.5","m1.5"]],["m16",["design thinking","kompetenz","competencies","m 1.6","m1.6"]],["m19",["finance","finanz","nvidia","häcker","m 1.9","m1.9"]]];
-const WD=["so","mo","di","mi","do","fr","sa"];
-const NAVCMD={cockpit:"heute",heute:"heute",woche:"woche",fächer:"faecher",faecher:"faecher",aufgaben:"aufgaben",notizen:"notizen",mail:"mail"};
-function parseQuick(txt){
-  let t=" "+txt.trim()+" ",due=null,cid="",prio=false,kind="task";const low=t.toLowerCase();
-  const nav=txt.trim().toLowerCase().replace(/^(gehe zu|öffne|go)\s+/,"");
-  if(NAVCMD[nav])return{kind:"nav",to:NAVCMD[nav],title:nav};
-  if(/^\s*(notiz|note)\s*:/i.test(t)){kind="note";t=t.replace(/^\s*(notiz|note)\s*:/i," ")}
-  if(/!|\bwichtig\b/i.test(t)){prio=true;t=t.replace(/!+/g," ").replace(/\bwichtig\b/ig," ")}
-  const today=sod(new Date());const plus=n=>new Date(today.getTime()+n*DAY);let m;
-  if(m=t.match(/\b(bis\s+)?heute\b/i)){due=today;t=t.replace(m[0]," ")}
-  else if(m=t.match(/\b(bis\s+)?übermorgen\b/i)){due=plus(2);t=t.replace(m[0]," ")}
-  else if(m=t.match(/\b(bis\s+)?morgen\b/i)){due=plus(1);t=t.replace(m[0]," ")}
-  else if(m=t.match(/\bin\s+(\d+)\s+tag(en)?\b/i)){due=plus(+m[1]);t=t.replace(m[0]," ")}
-  else if(m=t.match(/\b(bis\s+)?(am\s+)?(\d{1,2})\.(\d{1,2})\.(\d{2,4})?/i)){let y=m[5]?+m[5]:today.getFullYear();if(y<100)y+=2000;let d=new Date(y,+m[4]-1,+m[3]);if(!m[5]&&d<today)d=new Date(y+1,+m[4]-1,+m[3]);due=d;t=t.replace(m[0]," ")}
-  else if(m=t.match(/\b(bis\s+)?(nächsten\s+)?(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i)){const i=WD.indexOf(m[3].slice(0,2).toLowerCase());let n=(i-today.getDay()+7)%7;if(n===0)n=7;due=plus(n);t=t.replace(m[0]," ")}
-  for(const [id,ks] of KEYS){if(ks.some(k=>low.includes(k))){cid=id;break}}
-  const title=t.replace(/\s+/g," ").replace(/\s*(für|in)\s*$/i,"").trim();
-  return{kind,title,due:due?iso(due):"",course:cid,prio};
-}
-function quickHint(){
-  const v=$("#q").value.trim();const h=$("#qhint");
-  if(!v){h.innerHTML='z. B. <b>Hypothesen für Research Methods bis Freitag !</b> · <b>Notiz: Pisano-Matrix</b> · <b>woche</b>';return}
-  const p=parseQuick(v);
-  if(p.kind==="nav"){h.innerHTML=`Öffnen: <b>${esc(VIEWS.find(x=>x[0]===p.to)[1])}</b> · Enter`;return}
-  const c=course(p.course);
-  h.innerHTML=`${p.kind==="note"?"Notiz":"Aufgabe"}: <b>${esc(p.title||"…")}</b>${c?" · "+esc(c.short):""}${p.due?" · fällig "+fDate(fromIso(p.due)):""}${p.prio?" · wichtig":""} · Enter`;
-}
-function quickSubmit(){
-  const v=$("#q").value.trim();if(!v)return;const p=parseQuick(v);
-  if(p.kind==="nav"){$("#q").value="";return go(p.to)}
-  if(!p.title)return;
-  if(p.kind==="note")add("notes",{text:p.title,course:p.course},"Notiz gespeichert");
-  else add("tasks",{title:p.title,due:p.due,course:p.course,prio:p.prio,done:false,source:"dashboard"},"Aufgabe gespeichert");
-  $("#q").value="";quickHint();
-}
-
 /* ---------- Navigation ---------- */
 function go(v,cid){view=v;courseId=cid||null;try{localStorage.setItem("sb-view",v)}catch(e){};render();window.scrollTo(0,0)}
 function renderNav(){
@@ -505,7 +473,7 @@ function vHeute(){
     <section class="panel s7" aria-labelledby="h-prog"><div class="ph"><h2 id="h-prog">Fortschritt Modularbeiten</h2><span class="num faint" style="font-size:.8rem">${doneSteps}/${allSteps} Schritte</span></div>
       <div class="rings">${sortedCourses().map(c=>{const p=progressOf(c.id);return `<button class="ring" data-course="${c.id}" ${tipAttr(`<b>${esc(c.name)}</b><br>${p==null?"Noch kein Plan angelegt":stepsOf(c.id).filter(s=>s.done).length+" von "+stepsOf(c.id).length+" Schritten erledigt"}`)}>${ringSVG(p,cvar(c.id))}<span>${esc(c.short)}</span></button>`}).join("")||'<div class="empty">Fächer werden geladen …</div>'}</div></section>
     <section class="panel s5" aria-labelledby="h-top"><div class="ph"><h2 id="h-top">Priorität</h2><button class="btn small" data-go="aufgaben">Alle Aufgaben</button></div>
-      ${top.length?top.map(taskItem).join(""):'<div class="empty">Keine offenen Aufgaben. Oben im Befehlsfeld eine anlegen oder Claude im Chat darum bitten.</div>'}
+      ${top.length?top.map(taskItem).join(""):'<div class="empty">Keine offenen Aufgaben. Im Reiter Aufgaben mit + anlegen oder Claude im Chat darum bitten.</div>'}
       ${dueSteps.length?`<div class="label" style="margin-top:12px">Plan-Schritte in den nächsten 7 Tagen</div>${dueSteps.map(s=>`<div class="item"><input type="checkbox" class="check" data-toggle="steps/${s.id}" aria-label="Erledigt"><div class="body"><div class="title">${esc(s.title)}</div><div class="meta">${cChip(s.course)}${relDue(s.due)}</div></div></div>`).join("")}`:""}</section>
 
     <section class="panel s7" aria-labelledby="h-act"><div class="ph"><h2 id="h-act">Aktivität · 14 Tage</h2><span class="faint" style="font-size:.76rem">erledigte Aufgaben und Schritte</span></div><div class="chart" data-chart="activity"></div></section>
@@ -618,20 +586,27 @@ function vFach(c){
   </div>`;
 }
 function noteItem(n){const ev=n.eventId&&S.events.find(e=>e.id===n.eventId);return `<div class="item"><div class="body"><div style="white-space:pre-wrap">${esc(n.text)}</div><div class="meta">${cChip(n.course)}${ev?`<span class="chip">Vorlesung ${fDate(ev.start)}</span>`:""}<span>${n.createdAt?fDate(n.createdAt,{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span></div></div><button class="x" data-del="notes/${n.id}" aria-label="Löschen">✕</button></div>`}
+function dueCell(d){if(!d)return'<span class="due none">ohne Datum</span>';const n=daysUntil(fromIso(d));const txt=n<0?`${-n} T über`:n===0?"heute":n===1?"morgen":fDate(fromIso(d));return `<span class="due${n<0?" crit":n<=3?" warn":""}">${txt}</span>`}
+function listHead(title,n,key,label){return `<div class="lh"><h2>${title}<span class="cnt">${n}</span></h2>${key?`<button class="plus" data-add="${key}" aria-expanded="${!!addOpen[key]}" aria-label="${label}">${addOpen[key]?"×":"+"}</button>`:""}</div>`}
 function vAufgaben(){
-  let ts=S.tasks.filter(t=>taskFilter==="offen"?!t.done:t.done);if(taskCourse)ts=ts.filter(t=>t.course===taskCourse);
-  ts=taskFilter==="offen"?ts.sort((a,b)=>(b.prio?1:0)-(a.prio?1:0)||(a.due||"9999").localeCompare(b.due||"9999")):ts.sort((a,b)=>(b.doneAt||"").localeCompare(a.doneAt||""));
-  const open=S.tasks.filter(t=>!t.done).length,done=S.tasks.length-open,over=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(fromIso(t.due))<0).length;
-  return `<div class="ph"><h1>Aufgaben</h1><div class="row"><span class="chip">${open} offen</span><span class="chip">${done} erledigt</span>${over?`<span class="chip crit">⚠ ${over} überfällig</span>`:""}</div></div>
-  <div class="tabs"><div class="seg" role="group">${["offen","erledigt"].map(f=>`<button data-tf="${f}" aria-pressed="${taskFilter===f}">${f[0].toUpperCase()+f.slice(1)}</button>`).join("")}</div><select class="sel" id="tc" aria-label="Fach filtern">${courseOptions(taskCourse,"Alle Fächer")}</select></div>
-  <section class="panel">${ts.length?ts.map(taskItem).join(""):'<div class="empty">Hier ist nichts. Neue Aufgaben über das Befehlsfeld oben anlegen.</div>'}
-  <form class="inline" id="f-task"><input type="text" id="t-title" placeholder="Neue Aufgabe" required><input type="date" id="t-due" aria-label="Fällig"><select id="t-course">${courseOptions(taskCourse)}</select><label class="row" style="gap:4px;font-size:.85rem"><input type="checkbox" id="t-prio"> wichtig</label><button class="btn primary">Hinzufügen</button></form></section>`;
+  let all=S.tasks.slice();if(taskCourse)all=all.filter(t=>t.course===taskCourse);
+  const open=all.filter(t=>!t.done).sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")||(b.prio?1:0)-(a.prio?1:0));
+  const done=all.filter(t=>t.done).sort((a,b)=>(b.doneAt||"").localeCompare(a.doneAt||""));
+  const row=t=>`<div class="trow${t.done?" done":""}"><input type="checkbox" class="check" data-toggle="tasks/${t.id}" ${t.done?"checked":""} aria-label="${t.done?"Wieder öffnen":"Erledigt"}"><div class="body"><div class="title">${t.prio&&!t.done?'<span class="flag">▲ </span>':""}${esc(t.title)}</div>${t.course||t.source==="mail"?`<div class="meta">${cChip(t.course)}${t.source==="mail"?"<span>via Mail-Briefing</span>":""}</div>`:""}</div>${t.done?`<button class="minus" data-del="tasks/${t.id}" aria-label="Entfernen">−</button>`:dueCell(t.due)}</div>`;
+  return `<div class="ph"><h1>Aufgaben</h1><select class="sel" id="tc" aria-label="Fach filtern">${courseOptions(taskCourse,"Alle Fächer")}</select></div>
+  <div class="stack" style="gap:16px">
+  <section class="panel">${listHead("Offen",open.length,"task","Neue Aufgabe")}
+  ${addOpen.task?`<div class="addbox"><form class="inline" id="f-task"><input type="text" id="t-title" placeholder="Neue Aufgabe" required><input type="date" id="t-due" aria-label="Fällig"><select id="t-course">${courseOptions(taskCourse)}</select><label class="row" style="gap:4px;font-size:.85rem"><input type="checkbox" id="t-prio"> wichtig</label><button class="btn primary">Hinzufügen</button></form></div>`:""}
+  <div>${open.length?open.map(row).join(""):'<div class="empty">Keine offenen Aufgaben.</div>'}</div></section>
+  <section class="panel">${listHead("Erledigt",done.length)}<div>${done.length?done.map(row).join(""):'<div class="empty">Noch nichts erledigt.</div>'}</div></section></div>`;
 }
 function vNotizen(){
   let ns=S.notes.slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));if(noteCourse)ns=ns.filter(n=>n.course===noteCourse);
+  const row=n=>{const ev=n.eventId&&S.events.find(e=>e.id===n.eventId);return `<div class="trow" style="align-items:flex-start"><div class="body"><div style="white-space:pre-wrap">${esc(n.text)}</div><div class="meta">${cChip(n.course)}${ev?`<span class="chip">Vorlesung ${fDate(ev.start)}</span>`:""}<span>${n.createdAt?fDate(n.createdAt,{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span></div></div><button class="minus" data-del="notes/${n.id}" aria-label="Entfernen">−</button></div>`};
   return `<div class="ph"><h1>Notizen</h1><select class="sel" id="nc" aria-label="Fach filtern">${courseOptions(noteCourse,"Alle Fächer")}</select></div>
-  <section class="panel"><form class="inline" data-addnote="" style="margin-top:0;margin-bottom:8px"><textarea name="text" rows="3" placeholder="Neue Notiz" required></textarea><select name="course">${courseOptions(noteCourse)}</select><button class="btn primary">Speichern</button></form>
-  ${ns.length?ns.map(noteItem).join(""):'<div class="empty">Noch keine Notizen.</div>'}</section>`;
+  <section class="panel">${listHead("Notizen",ns.length,"note","Neue Notiz")}
+  ${addOpen.note?`<div class="addbox"><form class="inline" data-addnote=""><textarea name="text" rows="3" placeholder="Neue Notiz" required></textarea><select name="course">${courseOptions(noteCourse)}</select><button class="btn primary">Speichern</button></form></div>`:""}
+  <div>${ns.length?ns.map(row).join(""):'<div class="empty">Noch keine Notizen.</div>'}</div></section>`;
 }
 function vMail(){
   const ds=S.digests.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -643,13 +618,11 @@ function vMail(){
 /* ---------- Render ---------- */
 function render(){
   renderNav();hideTip();
-  const qv=$("#q")?$("#q").value:"";const qf=document.activeElement&&document.activeElement.id==="q";
   const body={heute:vHeute,woche:vWoche,faecher:vFaecher,aufgaben:vAufgaben,notizen:vNotizen,mail:vMail}[view]();
   const h=new Date().getHours();
-  $("#main").innerHTML=`<div class="top"><div><div class="label">Semesterboard · M.Sc. Applied Business Innovation</div><h1>${view==="heute"?`Guten ${h<11?"Morgen":h<18?"Tag":"Abend"}, Lukas`:esc(VIEWS.find(v=>v[0]===view)[1])}</h1>${view==="heute"?'<button class="btn" data-brief="open" style="margin-top:8px">☀ Tages-Briefing</button>':""}</div>
-    <form class="cmd" id="qf"><div class="in"><span class="prompt">›</span><input id="q" placeholder="Aufgabe, „Notiz: …“ oder Ansicht öffnen" autocomplete="off" aria-label="Befehlsfeld"><span class="kbd">Strg K</span></div><div class="hint" id="qhint"></div></form></div>
+  $("#main").innerHTML=`<div class="top"><div><div class="label">Semesterboard · M.Sc. Applied Business Innovation</div>${view==="heute"?`<h1>Guten ${h<11?"Morgen":h<18?"Tag":"Abend"}, Lukas</h1>`:""}${view==="heute"?'<button class="btn" data-brief="open" style="margin-top:8px">☀ Tages-Briefing</button>':""}</div></div>
     ${!navigator.onLine?'<div class="notice">Offline: Du siehst den letzten Stand. Änderungen gehen erst wieder mit Verbindung.</div>':""}${body}`;
-  $("#q").value=qv;if(qf)$("#q").focus();quickHint();drawCharts();
+  drawCharts();
   const b=$("#brief");if(b&&!b.hidden){const sc=b.firstElementChild?b.firstElementChild.scrollTop:0;b.innerHTML=briefingHTML();b.firstElementChild.scrollTop=sc}
 }
 
@@ -661,7 +634,8 @@ document.addEventListener("pointermove",e=>{const t=e.target.closest&&e.target.c
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click",e=>{
   if(e.target.id==="brief")return closeBrief();
-  const t=e.target.closest("[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  const t=e.target.closest("[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  if(t.dataset.add){const k=t.dataset.add;addOpen[k]=!addOpen[k];render();if(addOpen[k]){const i=document.querySelector(k==="task"?"#t-title":"[data-addnote=''] textarea");if(i)i.focus()}return}
   if(t.dataset.brief)return t.dataset.brief==="open"?openBrief():closeBrief();
   if(t.dataset.go){closeBrief();return go(t.dataset.go)}
   if(t.dataset.tl){tlRange=t.dataset.tl;try{localStorage.setItem("sb-tl",tlRange)}catch(err){};return render()}
@@ -687,15 +661,13 @@ document.addEventListener("change",e=>{
   if(t.id==="nc"){noteCourse=t.value;render()}
   if(t.id==="fcourse"){F.course=t.value;render()}
 });
-document.addEventListener("input",e=>{if(e.target.id==="q")quickHint()});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#brief").hidden){closeBrief();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#q").focus()}if(e.key==="Escape"&&document.activeElement.id==="q"){$("#q").value="";$("#q").blur();quickHint()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#brief").hidden){closeBrief();return}});
 document.addEventListener("submit",e=>{
   const f=e.target;if(f.id==="authform")return;e.preventDefault();
-  if(f.id==="qf")return quickSubmit();
-  if(f.id==="f-task"){add("tasks",{title:$("#t-title").value.trim(),due:$("#t-due").value,course:$("#t-course").value,prio:$("#t-prio").checked,done:false,source:"dashboard"},"Aufgabe gespeichert");f.reset();return}
+  if(f.id==="f-task"){add("tasks",{title:$("#t-title").value.trim(),due:$("#t-due").value,course:$("#t-course").value,prio:$("#t-prio").checked,done:false,source:"dashboard"},"Aufgabe gespeichert");f.reset();addOpen.task=false;render();return}
   if(f.id==="f-event"){const d=$("#ev-date").value;const mk=t=>new Date(d+"T"+(t||"00:00")).toISOString();add("events",{title:$("#ev-title").value.trim(),start:mk($("#ev-from").value),end:mk($("#ev-to").value),allDay:false,location:$("#ev-loc").value.trim(),course:$("#ev-course").value,kind:"own"},"Termin gespeichert");f.reset();return}
   if(f.dataset.addstep!==undefined){const cid=f.dataset.addstep;const st=stepsOf(cid);add("steps",{course:cid,title:f.elements.title.value.trim(),due:f.elements.due.value,owner:f.elements.owner.value.trim(),done:false,order:st.length?Math.max(...st.map(s=>s.order??0))+1:0},"Schritt hinzugefügt");f.reset();return}
-  if(f.dataset.addnote!==undefined){const cid=f.dataset.addnote||(f.elements.course?f.elements.course.value:"");add("notes",{text:f.elements.text.value.trim(),course:cid,eventId:f.elements.event?f.elements.event.value:""},"Notiz gespeichert");f.reset();return}
+  if(f.dataset.addnote!==undefined){const cid=f.dataset.addnote||(f.elements.course?f.elements.course.value:"");add("notes",{text:f.elements.text.value.trim(),course:cid,eventId:f.elements.event?f.elements.event.value:""},"Notiz gespeichert");f.reset();if(f.dataset.addnote===""){addOpen.note=false;render()}return}
   if(f.dataset.addlit!==undefined){const cid=f.dataset.addlit;add("literature",{course:cid,title:f.elements.title.value.trim(),status:0,order:S.literature.filter(l=>l.course===cid).length},"Quelle hinzugefügt");f.reset();return}
 });
 async function backplan(cid){
@@ -732,7 +704,7 @@ let started=false;
 sb.auth.onAuthStateChange((ev,session)=>{if(session&&!started){started=true;startData()}else if(!session){started=false;if(channel){sb.removeChannel(channel);channel=null}showAuth()}});
 addEventListener("online",()=>{render();if(started)COLS.forEach(c=>load(c).catch(()=>{}))});addEventListener("offline",render);
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
-let raf=0;function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const a=document.activeElement;if(a&&a.closest&&a.closest("form")&&a.id!=="q"&&a.value)return setTimeout(schedule,800);render()})}
+let raf=0;function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const a=document.activeElement;if(a&&a.closest&&a.closest("form")&&a.value)return setTimeout(schedule,800);render()})}
 setInterval(()=>{const n=new Date();const c=$("#clock");if(c)c.innerHTML=`${fTime(n)}<span class="sec">${String(n.getSeconds()).padStart(2,"0")}</span>`;const cd=$("#nextcd");if(cd)cd.textContent=countdownText(new Date(+cd.dataset.at))},1000);
 setInterval(()=>{if(!document.activeElement||!document.activeElement.closest("form"))render()},5*60000);
 let rz=0;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(drawCharts,150)});
