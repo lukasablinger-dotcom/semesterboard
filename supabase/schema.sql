@@ -25,6 +25,7 @@ create table if not exists public.events (
   course text default '',
   kind text not null default 'own' check (kind in ('lecture','deadline','exam','other','holiday','private','own')),
   source text default 'dashboard',
+  gcal text,                         -- null = noch nicht im Google Kalender, 'manual' = per Knopf, sonst Google-Event-ID
   owner uuid not null default auth.uid() references auth.users on delete cascade,
   created_at timestamptz not null default now()
 );

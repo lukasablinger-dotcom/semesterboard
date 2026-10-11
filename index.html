@@ -131,6 +131,10 @@ main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;
 .trow.done .title{text-decoration:line-through;color:var(--ink3)}
 .minus{width:30px;height:30px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink2);font-size:1.15rem;line-height:1;cursor:pointer;flex:none;display:grid;place-items:center}
 .minus:hover{border-color:var(--crit);color:#ff8a82}
+.gbtn{display:inline-block;margin-top:5px;font-size:.74rem;font-weight:600;padding:3px 9px;border-radius:8px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);text-decoration:none}
+.gbtn:hover{background:var(--accent);color:var(--on-accent)}
+.gdone{display:inline-block;margin-top:5px;font-size:.72rem;color:#5fd35f}
+.saved{font-size:.85rem;color:var(--ink2);margin:6px 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.saved .gbtn{margin:0}
 .x{border:0;background:none;color:var(--ink3);cursor:pointer;padding:2px 6px;border-radius:6px;font-size:.85rem}
 .x:hover{background:var(--panel2);color:var(--crit)}
 .flag{color:var(--serious);font-weight:700}
@@ -284,7 +288,7 @@ const VIEWS=[["heute","Cockpit"],["woche","Woche"],["faecher","Fächer"],["aufga
 const COLS=["courses","events","tasks","steps","notes","digests","literature","timelog","reviews"];
 const SEM_START=new Date(2026,9,1), SEM_END=new Date(2027,1,15);
 const S={}; COLS.forEach(c=>S[c]=[]);
-let ringsDone=false, db=null, loaded=false, view="heute", courseId=null, taskFilter="offen", taskCourse="", noteCourse="", tlRange="sem";
+let lastEv=null, ringsDone=false, db=null, loaded=false, view="heute", courseId=null, taskFilter="offen", taskCourse="", noteCourse="", tlRange="sem";
 const addOpen={task:false,note:false};
 const F={course:"",len:25,left:25*60,running:false,started:null,int:null};
 try{const v=localStorage.getItem("sb-view"); if(v&&VIEWS.some(x=>x[0]===v)) view=v; const r=localStorage.getItem("sb-tl"); if(r==="sem"||r==="wk") tlRange=r;}catch(e){}
@@ -356,7 +360,11 @@ function countdownStrip(cid){
   return `<div class="countdowns">${ds.map(e=>{const n=daysUntil(e.start);const total=Math.max(1,(sod(e.start)-SEM_START)/DAY);const p=Math.min(100,Math.max(0,100*(1-n/total)));const u=urg(n);
     return `<button class="cd ${u}" style="--cc:${cvar(e.course)};--p:${p}%" ${e.course?`data-course="${e.course}"`:""}><h3 style="font-size:.92rem;line-height:1.25">${esc(course(e.course)?course(e.course).short:short(e.title))}</h3><div class="label" style="margin:2px 0 8px">${e.kind==="exam"?"Prüfung":"Abgabe"} · ${fDate(e.start,{day:"2-digit",month:"2-digit"})}</div><div class="days">${n}<span>${n===1?"Tag":"Tage"}</span></div><div class="t">${esc(short(e.title))}</div>${u?`<div class="st">${u==="crit"?"⚠ Kritisch":"● Bald"}</div>`:""}</button>`}).join("")}</div>`;
 }
-function eventLine(e){return `<div class="ev" style="--cc:${cvar(e.course)}"><div class="tm">${e.allDay?"ganztägig":fTime(e.start)+"–"+fTime(e.end)}${e.kind==="private"?" · privat":""}</div><div>${esc(e.title)}</div>${e.location?`<div class="faint">${esc(roomOf(e.location))}</div>`:""}</div>`}
+const gstamp=d=>new Date(d).toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+function gcalUrl(e){const c=course(e.course);const q=new URLSearchParams({action:"TEMPLATE",text:e.title,dates:gstamp(e.start)+"/"+gstamp(e.end||e.start),details:(c?c.code+" "+c.short+"\n":"")+"Aus dem Semesterboard",location:e.location||""});return "https://calendar.google.com/calendar/render?"+q}
+function gcalBtn(e){if(e.kind!=="own"||e.source==="gcal"||e.source==="ics")return"";if(e.gcal)return'<span class="gdone">✓ im Google Kalender</span>';if(new Date(e.end||e.start)<new Date())return"";
+  return `<a class="gbtn" href="${esc(gcalUrl(e))}" target="_blank" rel="noopener" data-gcal="${e.id}">+ Google Kalender</a>`}
+function eventLine(e){return `<div class="ev" style="--cc:${cvar(e.course)}"><div class="tm">${e.allDay?"ganztägig":fTime(e.start)+"–"+fTime(e.end)}${e.kind==="private"?" · privat":""}</div><div>${esc(e.title)}</div>${e.location?`<div class="faint">${esc(roomOf(e.location))}</div>`:""}${gcalBtn(e)}</div>`}
 
 /* ---------- Diagramme ---------- */
 function ringSVG(p,color,size=84,stroke=8,label){
@@ -558,7 +566,7 @@ function vWoche(){
       ${ts.map(t=>`<div class="ev" style="--cc:${cvar(t.course)}"><div class="tm">Aufgabe</div><div>${t.prio?'<span class="flag">▲ </span>':""}${esc(t.title)}</div></div>`).join("")}
       ${st.map(s=>`<div class="ev" style="--cc:${cvar(s.course)}"><div class="tm">Plan-Schritt</div><div>${esc(s.title)}</div></div>`).join("")}
       ${!ev.length&&!ts.length&&!st.length?'<div class="empty" style="font-size:.8rem">Frei</div>':""}</div>`}).join("")}</div>
-  <section class="panel" style="margin-top:16px"><h2>Eigenen Termin eintragen</h2>
+  <section class="panel" style="margin-top:16px"><h2>Eigenen Termin eintragen</h2>${(()=>{const e=lastEv&&S.events.find(x=>x.id===lastEv);return e?`<div class="saved">Gespeichert: <b>${esc(e.title)}</b> · ${fDate(e.start)} ${fTime(e.start)} ${gcalBtn(e)}</div>`:""})()}
     <form class="inline" id="f-event"><input type="text" id="ev-title" placeholder="z. B. Teamtreffen Research Methods" required><input type="date" id="ev-date" required><input type="time" id="ev-from" value="10:00" aria-label="Beginn"><input type="time" id="ev-to" value="11:00" aria-label="Ende"><input type="text" id="ev-loc" placeholder="Ort"><select id="ev-course">${courseOptions("")}</select><button class="btn primary">Speichern</button></form>
     <p class="faint" style="font-size:.78rem;margin:8px 0 0">Private Termine aus deinem Google Kalender übernimmt die Morgen-Routine automatisch, nur lesend.</p></section>`;
 }
@@ -682,6 +690,7 @@ document.addEventListener("click",e=>{
     add("tasks",{title:sug.title,due:sug.due||"",course:sug.course||"",prio:!!sug.prio,done:false,source:"mail"},"Aufgabe übernommen").then(()=>upd("digests",did,{tasks:d.tasks.map((x,j)=>j===+i?{...x,accepted:true}:x)}));return}
   if(t.dataset.backplan)return backplan(t.dataset.backplan);
 });
+document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest("a[data-gcal]");if(a)upd("events",a.dataset.gcal,{gcal:"manual"},"Als eingetragen markiert")});
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.dataset.toggle){const [c,id]=t.dataset.toggle.split("/");upd(c,id,{done:t.checked,doneAt:t.checked?new Date().toISOString():null},t.checked?"✓ Erledigt":null);return}
@@ -693,7 +702,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#brief").hidden
 document.addEventListener("submit",e=>{
   const f=e.target;if(f.id==="authform")return;e.preventDefault();
   if(f.id==="f-task"){add("tasks",{title:$("#t-title").value.trim(),due:$("#t-due").value,course:$("#t-course").value,prio:$("#t-prio").checked,done:false,source:"dashboard"},"Aufgabe gespeichert");f.reset();addOpen.task=false;render();return}
-  if(f.id==="f-event"){const d=$("#ev-date").value;const mk=t=>new Date(d+"T"+(t||"00:00")).toISOString();add("events",{title:$("#ev-title").value.trim(),start:mk($("#ev-from").value),end:mk($("#ev-to").value),allDay:false,location:$("#ev-loc").value.trim(),course:$("#ev-course").value,kind:"own"},"Termin gespeichert");f.reset();return}
+  if(f.id==="f-event"){const d=$("#ev-date").value;const mk=t=>new Date(d+"T"+(t||"00:00")).toISOString();const nid=(crypto.randomUUID?crypto.randomUUID():String(Date.now()));lastEv=nid;add("events",{id:nid,title:$("#ev-title").value.trim(),start:mk($("#ev-from").value),end:mk($("#ev-to").value),allDay:false,location:$("#ev-loc").value.trim(),course:$("#ev-course").value,kind:"own"},"Termin gespeichert");f.reset();return}
   if(f.dataset.addstep!==undefined){const cid=f.dataset.addstep;const st=stepsOf(cid);add("steps",{course:cid,title:f.elements.title.value.trim(),due:f.elements.due.value,owner:f.elements.owner.value.trim(),done:false,order:st.length?Math.max(...st.map(s=>s.order??0))+1:0},"Schritt hinzugefügt");f.reset();return}
   if(f.dataset.addnote!==undefined){const cid=f.dataset.addnote||(f.elements.course?f.elements.course.value:"");add("notes",{text:f.elements.text.value.trim(),course:cid,eventId:f.elements.event?f.elements.event.value:""},"Notiz gespeichert");f.reset();if(f.dataset.addnote===""){addOpen.note=false;render()}return}
   if(f.dataset.addlit!==undefined){const cid=f.dataset.addlit;add("literature",{course:cid,title:f.elements.title.value.trim(),status:0,order:S.literature.filter(l=>l.course===cid).length},"Quelle hinzugefügt");f.reset();return}
