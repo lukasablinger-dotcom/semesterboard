@@ -57,7 +57,10 @@ a{color:var(--accent)}
 @media (prefers-reduced-motion:no-preference){.dot.live{animation:pulse 2.4s infinite}@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(12,163,12,.55)}70%{box-shadow:0 0 0 8px rgba(12,163,12,0)}100%{box-shadow:0 0 0 0 rgba(12,163,12,0)}}}
 
 main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;max-width:1320px;width:100%}
-.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.top{display:flex;flex-wrap:nowrap;gap:12px 20px;align-items:flex-start;justify-content:space-between;margin-bottom:18px}
+.refresh{width:42px;height:42px;flex:none;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);color:var(--accent);cursor:pointer;display:grid;place-items:center;transition:all .15s}
+.refresh:hover{border-color:var(--accent);box-shadow:0 0 16px rgba(111,227,245,.35)}
+.refresh.spin svg{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .kbd{font-family:var(--f-mono);font-size:.7rem;color:var(--ink3);border:1px solid var(--line2);border-radius:6px;padding:1px 6px;white-space:nowrap}
 
 .grid{display:grid;gap:16px;grid-template-columns:repeat(12,minmax(0,1fr))}
@@ -644,7 +647,7 @@ function render(){
   renderNav();hideTip();
   const body={heute:vHeute,woche:vWoche,faecher:vFaecher,aufgaben:vAufgaben,notizen:vNotizen,mail:vMail}[view]();
   const h=new Date().getHours();
-  $("#main").innerHTML=`<div class="top"><div><div class="label">Semesterboard · M.Sc. Applied Business Innovation</div>${view==="heute"?`<h1>Guten ${h<11?"Morgen":h<18?"Tag":"Abend"}, Lukas</h1>`:""}${view==="heute"?'<button class="btn" data-brief="open" style="margin-top:8px">☀ Tages-Briefing</button>':""}</div></div>
+  $("#main").innerHTML=`<div class="top"><div><div class="label">Semesterboard · M.Sc. Applied Business Innovation</div>${view==="heute"?`<h1>Guten ${h<11?"Morgen":h<18?"Tag":"Abend"}, Lukas</h1>`:""}${view==="heute"?'<button class="btn" data-brief="open" style="margin-top:8px">☀ Tages-Briefing</button>':""}</div>${view==="heute"?'<button class="refresh" id="refresh" data-refresh="1" aria-label="Aktualisieren" title="Aktualisieren"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>':""}</div>
     ${!navigator.onLine?'<div class="notice">Offline: Du siehst den letzten Stand. Änderungen gehen erst wieder mit Verbindung.</div>':""}${body}`;
   drawCharts();
   const b=$("#brief");if(b&&!b.hidden){const sc=b.firstElementChild?b.firstElementChild.scrollTop:0;b.innerHTML=briefingHTML();b.firstElementChild.scrollTop=sc}
@@ -658,7 +661,8 @@ document.addEventListener("pointermove",e=>{const t=e.target.closest&&e.target.c
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click",e=>{
   if(e.target.id==="brief")return closeBrief();
-  const t=e.target.closest("[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  const t=e.target.closest("[data-refresh],[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  if(t.dataset.refresh)return refreshAll();
   if(t.dataset.add){const k=t.dataset.add;addOpen[k]=!addOpen[k];render();if(addOpen[k]){const i=document.querySelector(k==="task"?"#t-title":"[data-addnote=''] textarea");if(i)i.focus()}return}
   if(t.dataset.brief)return t.dataset.brief==="open"?openBrief():closeBrief();
   if(t.dataset.go){closeBrief();return go(t.dataset.go)}
@@ -713,6 +717,13 @@ async function startData(){
   const timers={};
   channel=sb.channel("board").on("postgres_changes",{event:"*",schema:"public"},p=>{const t=p.table;if(!COLS.includes(t))return;clearTimeout(timers[t]);timers[t]=setTimeout(()=>load(t).catch(()=>{}),250)})
     .subscribe(st=>{if(st==="SUBSCRIBED"){dot.classList.add("live");txt.textContent="Live"}else if(st==="CLOSED"||st==="CHANNEL_ERROR"||st==="TIMED_OUT"){dot.classList.remove("live");txt.textContent="Getrennt"}});
+}
+async function refreshAll(){
+  if(!navigator.onLine)return toast("Du bist offline. Bitte später erneut versuchen.");
+  const b=$("#refresh");if(b)b.classList.add("spin");
+  try{if("serviceWorker" in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)r.update().catch(()=>{})}
+    await Promise.all(COLS.map(load));render();toast("Aktualisiert")}catch(e){toast("Aktualisieren hat nicht geklappt.")}
+  const b2=$("#refresh");if(b2)b2.classList.remove("spin");
 }
 function showAuth(){$("#auth").hidden=false;$("#logout").hidden=true;$("#synctext").textContent="Abgemeldet"}
 $("#authform").addEventListener("submit",async e=>{e.preventDefault();e.stopPropagation();$("#a-err").textContent="";

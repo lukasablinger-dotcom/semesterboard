@@ -14,3 +14,7 @@ Persönlicher Master-Leitstand (Vorlesungen, Aufgaben, Modularbeits-Pläne, Noti
 | `config.js` | Supabase-URL und öffentlicher (publishable) Schlüssel |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installation als App, Offline-Hülle |
 | `supabase/schema.sql` | Tabellen, Zugriffsschutz, Live-Updates |
+
+## Android-App
+
+`android/` enthält eine schlanke Android-Hülle, die die Web-App lädt. Bei jeder Änderung in `android/` baut GitHub Actions eine neue APK und hängt sie an ein Release. Neueste Version: https://github.com/lukasablinger-dotcom/semesterboard/releases/latest/download/semesterboard.apk
