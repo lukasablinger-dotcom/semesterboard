@@ -1,4 +1,4 @@
-// Öffentliche Supabase-Zugangsdaten. Der "publishable/anon key" darf im Browser stehen:
-// Die Daten schützt Row Level Security, jede Zeile gehört nur dem angemeldeten Konto.
-window.SB_URL="https://YOUR-PROJECT.supabase.co";
-window.SB_KEY="YOUR-PUBLISHABLE-KEY";
+// Öffentliche Supabase-Verbindungsdaten. Der Publishable Key darf im Browser stehen;
+// der Zugriff auf Daten ist per Row Level Security auf das eigene Konto beschränkt.
+window.SB_URL="https://xizecpcdzkiykbwijcmj.supabase.co";
+window.SB_KEY="sb_publishable_pxMjjvkbTX_9QNdVJqEOIg_gv7VucBM";
