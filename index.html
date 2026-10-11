@@ -135,6 +135,9 @@ main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;
 .gbtn:hover{background:var(--accent);color:var(--on-accent)}
 .gdone{display:inline-block;margin-top:5px;font-size:.72rem;color:#5fd35f}
 .saved{font-size:.85rem;color:var(--ink2);margin:6px 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.saved .gbtn{margin:0}
+.ev{position:relative}.ev .evdel{position:absolute;top:3px;right:2px;min-width:24px;height:22px;padding:0 6px;border-radius:6px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink3);font-size:.9rem;line-height:1;cursor:pointer}
+.ev .evdel:hover{border-color:var(--crit);color:#ff8a82}.ev .evdel.sure{border-color:var(--crit);background:rgba(229,83,75,.18);color:#ff8a82;font-size:.72rem;font-weight:700}
+.ev .tm{padding-right:30px}
 .x{border:0;background:none;color:var(--ink3);cursor:pointer;padding:2px 6px;border-radius:6px;font-size:.85rem}
 .x:hover{background:var(--panel2);color:var(--crit)}
 .flag{color:var(--serious);font-weight:700}
@@ -364,7 +367,9 @@ const gstamp=d=>new Date(d).toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,
 function gcalUrl(e){const c=course(e.course);const q=new URLSearchParams({action:"TEMPLATE",text:e.title,dates:gstamp(e.start)+"/"+gstamp(e.end||e.start),details:(c?c.code+" "+c.short+"\n":"")+"Aus dem Semesterboard",location:e.location||""});return "https://calendar.google.com/calendar/render?"+q}
 function gcalBtn(e){if(e.kind!=="own"||e.source==="gcal"||e.source==="ics")return"";if(e.gcal)return'<span class="gdone">✓ im Google Kalender</span>';if(new Date(e.end||e.start)<new Date())return"";
   return `<a class="gbtn" href="${esc(gcalUrl(e))}" target="_blank" rel="noopener" data-gcal="${e.id}">+ Google Kalender</a>`}
-function eventLine(e){return `<div class="ev" style="--cc:${cvar(e.course)}"><div class="tm">${e.allDay?"ganztägig":fTime(e.start)+"–"+fTime(e.end)}${e.kind==="private"?" · privat":""}</div><div>${esc(e.title)}</div>${e.location?`<div class="faint">${esc(roomOf(e.location))}</div>`:""}${gcalBtn(e)}</div>`}
+let pendingDel=null,pendingT=0;
+const evDel=e=>e.source==="gcal"?"":`<button class="evdel${pendingDel===e.id?" sure":""}" data-evdel="${e.id}" aria-label="Termin löschen">${pendingDel===e.id?"Löschen?":"−"}</button>`;
+function eventLine(e){return `<div class="ev" style="--cc:${cvar(e.course)}">${evDel(e)}<div class="tm">${e.allDay?"ganztägig":fTime(e.start)+"–"+fTime(e.end)}${e.kind==="private"?" · privat":""}</div><div>${esc(e.title)}</div>${e.location?`<div class="faint">${esc(roomOf(e.location))}</div>`:""}${gcalBtn(e)}</div>`}
 
 /* ---------- Diagramme ---------- */
 function ringSVG(p,color,size=84,stroke=8,label){
@@ -669,7 +674,10 @@ document.addEventListener("pointermove",e=>{const t=e.target.closest&&e.target.c
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click",e=>{
   if(e.target.id==="brief")return closeBrief();
-  const t=e.target.closest("[data-refresh],[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  const t=e.target.closest("[data-evdel],[data-refresh],[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  if(t.dataset.evdel){const id=t.dataset.evdel;clearTimeout(pendingT);
+    if(pendingDel===id){pendingDel=null;if(lastEv===id)lastEv=null;return del("events",id,"Termin gelöscht")}
+    pendingDel=id;render();pendingT=setTimeout(()=>{pendingDel=null;render()},4000);return}
   if(t.dataset.refresh)return refreshAll();
   if(t.dataset.add){const k=t.dataset.add;addOpen[k]=!addOpen[k];render();if(addOpen[k]){const i=document.querySelector(k==="task"?"#t-title":"[data-addnote=''] textarea");if(i)i.focus()}return}
   if(t.dataset.brief)return t.dataset.brief==="open"?openBrief():closeBrief();
