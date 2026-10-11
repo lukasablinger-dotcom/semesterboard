@@ -1,0 +1,16 @@
+# Semesterboard ABI
+
+Persönlicher Master-Leitstand (Vorlesungen, Aufgaben, Modularbeits-Pläne, Notizen, Mail-Briefing) als installierbare Web-App (PWA).
+
+- **Frontend:** eine statische Seite (`index.html`), gehostet über GitHub Pages, auf dem Handy über „Zum Startbildschirm hinzufügen“ installierbar.
+- **Daten:** Supabase (Postgres + Realtime). Jede Zeile gehört dem angemeldeten Konto (Row Level Security), Änderungen erscheinen live auf allen Geräten.
+- **Claude** schreibt über den Supabase-Connector direkt in dieselben Tabellen; die Morgen-Routine legt dort täglich das Mail-Briefing ab.
+
+## Dateien
+
+| Datei | Zweck |
+|---|---|
+| `index.html` | die komplette App |
+| `config.js` | Supabase-URL und öffentlicher (publishable) Schlüssel |
+| `manifest.webmanifest`, `sw.js`, `icons/` | Installation als App, Offline-Hülle |
+| `supabase/schema.sql` | Tabellen, Zugriffsschutz, Live-Updates |
