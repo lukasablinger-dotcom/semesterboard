@@ -735,10 +735,15 @@ async function startData(){
   channel=sb.channel("board").on("postgres_changes",{event:"*",schema:"public"},p=>{const t=p.table;if(!COLS.includes(t))return;clearTimeout(timers[t]);timers[t]=setTimeout(()=>load(t).catch(()=>{}),250)})
     .subscribe(st=>{if(st==="SUBSCRIBED"){dot.classList.add("live");txt.textContent="Live"}else if(st==="CLOSED"||st==="CHANNEL_ERROR"||st==="TIMED_OUT"){dot.classList.remove("live");txt.textContent="Getrennt"}});
 }
+let bootHash=null;
+const pageHash=()=>fetch("index.html",{cache:"no-cache"}).then(r=>r.ok?r.text():null).then(t=>{if(!t)return null;let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return h}).catch(()=>null);
+pageHash().then(h=>bootHash=h);
 async function refreshAll(){
   if(!navigator.onLine)return toast("Du bist offline. Bitte später erneut versuchen.");
   const b=$("#refresh");if(b)b.classList.add("spin");
-  try{if("serviceWorker" in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)r.update().catch(()=>{})}
+  try{if("serviceWorker" in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update().catch(()=>{})}
+    // Neue App-Version erkennen: dann ganz neu laden, sonst nur die Daten.
+    const h=await pageHash();if(h&&bootHash&&h!==bootHash){location.reload();return}
     await Promise.all(COLS.map(load));render();toast("Aktualisiert")}catch(e){toast("Aktualisieren hat nicht geklappt.")}
   const b2=$("#refresh");if(b2)b2.classList.remove("spin");
 }
@@ -755,7 +760,7 @@ $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();COLS.for
 let started=false;
 sb.auth.onAuthStateChange((ev,session)=>{if(session&&!started){started=true;startData()}else if(!session){started=false;if(channel){sb.removeChannel(channel);channel=null}showAuth()}});
 addEventListener("online",()=>{render();if(started)COLS.forEach(c=>load(c).catch(()=>{}))});addEventListener("offline",render);
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).catch(()=>{}));
 let raf=0;function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const a=document.activeElement;if(a&&a.closest&&a.closest("form")&&a.value)return setTimeout(schedule,800);render()})}
 setInterval(()=>{const n=new Date();const c=$("#clock");if(c)c.innerHTML=`${fTime(n)}<span class="sec">${String(n.getSeconds()).padStart(2,"0")}</span>`;const cd=$("#nextcd");if(cd)cd.textContent=countdownText(new Date(+cd.dataset.at))},1000);
 setInterval(()=>{if(!document.activeElement||!document.activeElement.closest("form"))render()},5*60000);
