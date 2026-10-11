@@ -83,7 +83,11 @@ main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;
 .semprog .ticks{display:flex;justify-content:space-between;margin-top:5px;font-family:var(--f-mono);font-size:.68rem;color:var(--ink3)}
 .next{border-left:1px solid var(--line);padding-left:20px;display:flex;flex-direction:column;gap:6px;min-width:0}
 @media (max-width:760px){.next{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:14px}}
-.next .cdn{font-family:var(--f-mono);font-size:1.5rem;color:var(--accent)}
+.next .cdn{font-family:var(--f-mono);font-size:.82rem;color:var(--accent);opacity:.85}
+.nwhen{display:flex;flex-direction:column;line-height:1.1}
+.nday{font-family:var(--f-display);font-size:1.45rem;font-weight:600;letter-spacing:.02em}
+.ntime{font-family:var(--f-mono);font-size:2.3rem;font-weight:600;color:var(--accent);text-shadow:0 0 18px rgba(111,227,245,.35)}
+.ntime .nend{font-size:1.1rem;color:var(--ink3);text-shadow:none;font-weight:500}
 .where{font-size:.88rem;color:var(--ink2);overflow-wrap:anywhere}
 
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--ink2);white-space:nowrap}
@@ -186,6 +190,17 @@ textarea{resize:vertical}
 .status.s2{border-color:var(--good);color:#5fd35f}
 
 /* Woche */
+.wkl{display:flex;flex-direction:column}
+.wkd{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px 0;border-top:1px solid var(--line)}.wkd:first-child{border-top:0}
+.wkd .dn{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.08em;font-size:.82rem;font-weight:600}.wkd .dd{font-family:var(--f-mono);font-size:.75rem;color:var(--ink3)}
+.wkd.today .dn{color:var(--accent)}.wkd.today{background:linear-gradient(90deg,var(--accent-soft),transparent 60%);border-radius:8px;padding-left:8px;margin-left:-8px}
+.wkd.past{opacity:.5}
+.wke{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:baseline;padding:3px 0 3px 10px;border-left:3px solid var(--cc,var(--c-none));margin:2px 0;cursor:pointer}
+.wke .t{font-family:var(--f-mono);font-size:.78rem;color:var(--ink2)}.wke .n{font-weight:600}.wke .r{font-size:.78rem;color:var(--ink3);margin-left:6px}
+.wke.dl .n::before{content:"◆ ";color:var(--cc)}
+.wkd .free{font-size:.8rem;color:var(--ink3)}
+@media (max-width:560px){.wkd{grid-template-columns:56px minmax(0,1fr);gap:8px}.wke{grid-template-columns:minmax(0,1fr);gap:0}.wke .r{display:block;margin:0}}
+
 .week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
 @media (max-width:1060px){.week{grid-template-columns:minmax(0,1fr)}}
 .day{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:130px;min-width:0}
@@ -345,8 +360,17 @@ function ringSVG(p,color,size=84,stroke=8,label){
   const r=(size-stroke)/2,C=2*Math.PI*r,off=C*(1-(p??0)/100);
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${stroke}" ${p==null?'stroke-dasharray="3 5"':""}/>${p!=null?`<circle class="rg" cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${ringsDone?off:C}" data-off="${off}" transform="rotate(-90 ${size/2} ${size/2})" style="filter:drop-shadow(0 0 4px ${color})"/>`:""}<text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" class="pct">${label??(p==null?"–":p+"%")}</text></svg>`;
 }
+function weekList(){
+  const today=sod(new Date());const wd=(today.getDay()+6)%7;const x0=new Date(today.getTime()+(wd>=5?7-wd:-wd)*DAY);
+  return `<div class="wkl">${[...Array(7)].map((_,i)=>{const d=new Date(x0.getTime()+i*DAY);
+    const ev=S.events.filter(e=>e.kind!=="holiday"&&sod(e.start).getTime()===d.getTime()).sort((a,b)=>(b.allDay?1:0)-(a.allDay?1:0)||new Date(a.start)-new Date(b.start));
+    const hol=S.events.find(e=>e.kind==="holiday"&&sod(e.start).getTime()===d.getTime());
+    return `<div class="wkd${d.getTime()===today.getTime()?" today":d<today?" past":""}"><div><div class="dn">${fDate(d,{weekday:innerWidth<560?"short":"long"})}</div><div class="dd">${fDate(d,{day:"2-digit",month:"2-digit"})}</div></div><div>${
+      ev.length?ev.map(e=>{const c=course(e.course);const dl=e.kind==="deadline"||e.kind==="exam";const name=dl?short(e.title):c?c.short:e.title;
+        return `<div class="wke${dl?" dl":""}" style="--cc:${cvar(e.course)}"${c?` data-course="${c.id}"`:""} ${tipAttr(`<b>${esc(e.title)}</b>${e.location?"<br>"+esc(e.location):""}`)}><span class="t">${e.allDay?"ganztägig":fTime(e.start)+"–"+fTime(e.end)}</span><span><span class="n">${esc(name)}</span>${e.kind==="private"?'<span class="r">privat</span>':""}${e.location?`<span class="r">${esc(roomOf(e.location))}</span>`:""}</span></div>`}).join(""):`<div class="free">${hol?esc(hol.title):"Frei"}</div>`}</div></div>`}).join("")}</div>`;
+}
 function chartTimeline(el){
-  const W=el.clientWidth,mobile=W<560,L=mobile?62:150,R=12,T=26,RH=30;
+  const W=el.clientWidth,mobile=W<560,L=mobile?112:150,R=12,T=26,RH=30;
   const cs=sortedCourses();if(!cs.length){el.innerHTML='<div class="empty">Fächer werden geladen …</div>';return}
   const today=sod(new Date());
   let x0,x1;if(tlRange==="wk"){const wd=(today.getDay()+6)%7;x0=new Date(today.getTime()+(wd>=5?7-wd:-wd)*DAY);x1=new Date(x0.getTime()+7*DAY)}else{x0=SEM_START;x1=SEM_END}
@@ -356,7 +380,7 @@ function chartTimeline(el){
   else{for(let m=new Date(x0.getFullYear(),x0.getMonth(),1);m<=x1;m=new Date(m.getFullYear(),m.getMonth()+1,1)){if(m>=x0)ticks.push([m,m.toLocaleDateString("de-DE",{month:"short"})])}}
   const dw=X(new Date(x0.getTime()+DAY))-X(x0);ticks.forEach(([d,l,c])=>{const x=X(d);g+=`<line x1="${x}" x2="${x}" y1="${T-6}" y2="${H-4}"/>`;const today_=c&&sod(d).getTime()===today.getTime();g+=`</g><text x="${c?x+dw/2:x+4}" y="${T-10}" ${c?'text-anchor="middle"':""} ${today_?'style="fill:var(--accent);font-weight:600"':""}>${l}</text><g class="grid">`});
   g+='</g>';
-  cs.forEach((c,i)=>{const y=T+i*RH+RH/2;g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="1 4"/><text class="lbl" x="0" y="${y}" dominant-baseline="central">${esc(mobile?c.code:c.short)}</text>`});
+  cs.forEach((c,i)=>{const y=T+i*RH+RH/2;g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="1 4"/><text class="lbl" x="0" y="${y}" dominant-baseline="central"${mobile?' style="font-size:11px"':""}>${esc(c.short)}</text>`});
   const tx=X(new Date());if(tx>=L&&tx<=W-R)g+=`<line x1="${tx}" x2="${tx}" y1="${T-6}" y2="${H-4}" stroke="var(--accent)" stroke-width="1.5" style="filter:drop-shadow(0 0 4px var(--accent))"/><text x="${tx+4}" y="${H+8}" style="fill:var(--accent)">Heute</text>`;
   S.events.forEach(e=>{const i=cs.findIndex(c=>c.id===e.course);if(i<0)return;const d=new Date(e.start);if(d<x0||d>x1)return;
     const x=X(d),y=T+i*RH+RH/2,col=cvar(e.course),past=d<today;
@@ -460,13 +484,13 @@ function vHeute(){
         <div class="semprog"><div class="row" style="justify-content:space-between"><span class="label">Semesterfortschritt · Woche ${Math.max(1,semW)} von 20</span><span class="num" style="font-size:.85rem">${semP.toFixed(0)} %</span></div>
           <div class="track" ${tipAttr(`<b>Wintersemester 2026/27</b><br>01.10.2026 bis 15.02.2027<br>${Math.max(0,Math.round((SEM_END-now)/DAY))} Tage verbleibend`)}><div class="fill" style="width:${semP}%"></div></div>
           <div class="ticks"><span>Okt</span><span>Nov</span><span>Dez</span><span>Jan</span><span>Feb</span></div></div></div>
-      <div class="next">${next?`<div class="label">Als Nächstes${next.kind==="private"?" · privat":""}</div><div class="cdn" id="nextcd" data-at="${new Date(next.start).getTime()}">${countdownText(new Date(next.start))}</div>
-        <h3>${esc(next.title)}</h3><div class="where">${fDate(next.start,{weekday:"long",day:"2-digit",month:"2-digit"})} · ${fTime(next.start)}–${fTime(next.end)}</div><div class="where">${esc(next.location||"Kein Ort")} ${mapLink(next.location)}</div><div>${cChip(next.course)}</div>`:'<div class="empty">Keine weiteren Termine.</div>'}</div>
+      <div class="next">${next?`<div class="label">Als Nächstes${next.kind==="private"?" · privat":""}</div><div class="nwhen"><span class="nday">${daysUntil(next.start)===0?"Heute":daysUntil(next.start)===1?"Morgen":fDate(next.start,{weekday:"long"})}, ${fDate(next.start,{day:"2-digit",month:"2-digit"})}</span><span class="ntime">${fTime(next.start)}<span class="nend">–${fTime(next.end)}</span></span></div><div class="cdn" id="nextcd" data-at="${new Date(next.start).getTime()}">${countdownText(new Date(next.start))}</div>
+        <h3>${esc(next.title)}</h3><div class="where">${esc(next.location||"Kein Ort")} ${mapLink(next.location)}</div><div>${cChip(next.course)}</div>`:'<div class="empty">Keine weiteren Termine.</div>'}</div>
     </div></section>
 
     <section class="panel s12" aria-labelledby="h-tl"><div class="ph"><h2 id="h-tl">${tlRange==="wk"?"Zeitleiste · KW "+kw(new Date(sod(new Date()).getTime()+(((new Date().getDay()+6)%7)>=5?2:0)*DAY)):"Semester-Zeitleiste"}</h2><div class="row"><div class="legend" style="margin:0"><span><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="var(--ink2)"/></svg>Vorlesung</span><span><svg width="12" height="12"><path d="M6 1L11 6L6 11L1 6Z" fill="var(--ink2)"/></svg>Abgabe</span><span><svg width="12" height="12"><path d="M6 1L11 6L6 11L1 6Z" fill="none" stroke="var(--ink2)" stroke-width="2"/></svg>Prüfung</span></div>
       <div class="seg" role="group" aria-label="Zeitraum"><button data-tl="sem" aria-pressed="${tlRange==="sem"}">Semester</button><button data-tl="wk" aria-pressed="${tlRange==="wk"}">Woche</button></div></div></div>
-      <div class="chart" data-chart="timeline"></div></section>
+      ${tlRange==="wk"?weekList():'<div class="chart" data-chart="timeline"></div>'}</section>
 
     <section class="s12" aria-labelledby="h-cd"><div class="ph"><h2 id="h-cd">Countdown Abgaben und Prüfungen</h2></div>${countdownStrip()}</section>
 
