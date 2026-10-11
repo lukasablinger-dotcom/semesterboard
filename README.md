@@ -1,6 +1,6 @@
 # Semesterboard ABI
 
-Persönlicher Master-Leitstand (Vorlesungen, Aufgaben, Modularbeits-Pläne, Notizen, Mail-Briefing) als installierbare Web-App (PWA).
+Persönlicher Master-Leitstand (Vorlesungen, Aufgaben, Modularbeits-Pläne, Notizen, Mail-Briefing) als installierbare Web-App (PWA). Über den Umschalter oben gibt es zusätzlich den Bereich **Alltag** (Training, Ernährung, Gewicht), dessen Daten in eigenen Tabellen (`fit_*`) getrennt von den Uni-Daten liegen.
 
 - **Frontend:** eine statische Seite (`index.html`), gehostet über GitHub Pages, auf dem Handy über „Zum Startbildschirm hinzufügen“ installierbar.
 - **Daten:** Supabase (Postgres + Realtime). Jede Zeile gehört dem angemeldeten Konto (Row Level Security), Änderungen erscheinen live auf allen Geräten.
@@ -13,7 +13,8 @@ Persönlicher Master-Leitstand (Vorlesungen, Aufgaben, Modularbeits-Pläne, Noti
 | `index.html` | die komplette App |
 | `config.js` | Supabase-URL und öffentlicher (publishable) Schlüssel |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installation als App, Offline-Hülle |
-| `supabase/schema.sql` | Tabellen, Zugriffsschutz, Live-Updates |
+| `supabase/schema.sql` | Tabellen, Zugriffsschutz, Live-Updates (Uni) |
+| `supabase/alltag.sql` | eigene Tabellen für den Bereich Alltag (Training, Mahlzeiten, Gewicht, Ziele) |
 
 ## Android-App
 
