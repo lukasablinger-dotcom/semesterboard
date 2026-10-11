@@ -683,9 +683,9 @@ $("#authform").addEventListener("submit",async e=>{e.preventDefault();e.stopProp
   if(error)$("#a-err").textContent="Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen.";});
 $("#a-signup").addEventListener("click",async()=>{$("#a-err").textContent="";const email=$("#a-mail").value.trim(),password=$("#a-pass").value;
   if(!email||password.length<8){$("#a-err").textContent="Bitte E-Mail und ein Passwort mit mindestens 8 Zeichen eingeben.";return}
-  const {data,error}=await sb.auth.signUp({email,password});
+  const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
   if(error)$("#a-err").textContent="Konto konnte nicht erstellt werden: "+error.message;
-  else if(!data.session)$("#a-err").textContent="Fast geschafft: Bitte den Link in der Bestätigungsmail öffnen und dich dann hier anmelden.";});
+  else if(!data.session)$("#a-err").textContent="Konto angelegt. Bitte den Link in der Bestätigungsmail öffnen (oder Claude Bescheid geben) und dich dann hier anmelden.";});
 $("#logout").addEventListener("click",async()=>{await sb.auth.signOut();COLS.forEach(c=>{S[c]=[];try{localStorage.removeItem("sb-cache-"+c)}catch(e){}});render()});
 let started=false;
 sb.auth.onAuthStateChange((ev,session)=>{if(session&&!started){started=true;startData()}else if(!session){started=false;if(channel){sb.removeChannel(channel);channel=null}showAuth()}});
