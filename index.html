@@ -208,6 +208,17 @@ textarea{resize:vertical}
   .kbd{display:none}
   h1{font-size:1.35rem}
 }
+.brief{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:16px;background:rgba(10,14,24,.78);backdrop-filter:blur(8px);animation:bfade .25s ease}
+.brief>.panel{width:100%;max-width:640px;max-height:calc(100dvh - 32px);overflow:auto;padding:20px 20px 16px;animation:brise .3s ease}
+.brief .bh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px}
+.brief .bh h2{font-family:var(--f-display);font-size:1.5rem;margin:4px 0 2px}
+.brief .lead{color:var(--ink2);margin:.2em 0 .4em;max-width:60ch}
+.brief .sec{margin-top:16px}.brief .sec>.label{display:flex;justify-content:space-between;margin-bottom:4px}
+.brief .tm{font-family:var(--f-mono);color:var(--accent);font-size:.82rem;min-width:88px;flex:none;margin-top:2px}
+.brief .foot{display:flex;justify-content:flex-end;margin-top:18px}
+.brief .xbtn{border:1px solid var(--line2);background:var(--panel2);border-radius:10px;width:36px;height:36px;cursor:pointer;flex:none;font-size:1rem}
+@keyframes bfade{from{opacity:0}}@keyframes brise{from{opacity:0;transform:translateY(12px)}}
+@media (prefers-reduced-motion:reduce){.brief,.brief>.panel{animation:none}}
 .auth{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:16px;background:rgba(10,14,24,.92);backdrop-filter:blur(10px)}
 .auth form{width:100%;max-width:360px;display:flex;flex-direction:column;gap:10px}
 .auth input{padding:11px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--bg2)}
@@ -228,6 +239,7 @@ textarea{resize:vertical}
 <nav class="tabbar" id="tabbar" aria-label="Navigation"></nav>
 <div class="tip" id="tip" hidden></div>
 <div class="toast" id="toast" hidden></div>
+<div class="brief" id="brief" hidden role="dialog" aria-modal="true" aria-labelledby="b-title"></div>
 <div class="auth" id="auth" hidden><form id="authform" class="panel hud"><div class="label">Semesterboard</div><h1>Anmelden</h1>
 <input type="email" id="a-mail" placeholder="E-Mail" autocomplete="email" required>
 <input type="password" id="a-pass" placeholder="Passwort (mind. 8 Zeichen)" autocomplete="current-password" minlength="8" required>
@@ -512,6 +524,32 @@ function digestBody(d,max){
   ${items.length?`<div>${items.map(m=>`<div class="mail item"><div class="body">${m.important?'<span class="flag">▲ </span>':""}<b>${esc(m.subject)}</b> <span class="faint">· ${esc(m.from)}</span><div class="muted" style="font-size:.82rem">${esc(m.gist)}</div></div></div>`).join("")}</div>`:""}
   ${sug.length?`<div class="label" style="margin-top:10px">Vorgeschlagene Aufgaben</div>${sug.map(t=>`<div class="item"><div class="body"><div class="title">${esc(t.title)}</div><div class="meta">${cChip(t.course)}${relDue(t.due)}</div></div><button class="btn small" data-accept="${d.id}|${t.i}">+ Übernehmen</button></div>`).join("")}`:""}`;
 }
+/* ---------- Tages-Briefing ---------- */
+function briefingHTML(){
+  const now=new Date(),today=iso(now),t0=sod(now).getTime(),h=now.getHours();
+  const ev=S.events.filter(e=>e.kind!=="holiday"&&sod(e.start).getTime()<=t0&&sod(new Date(new Date(e.end||e.start).getTime()-1)).getTime()>=t0).sort((a,b)=>(b.allDay?1:0)-(a.allDay?1:0)||new Date(a.start)-new Date(b.start));
+  const lect=ev.filter(e=>e.kind==="lecture");
+  const tasks=S.tasks.filter(t=>!t.done&&t.due&&t.due<=today).sort((a,b)=>a.due.localeCompare(b.due)||(b.prio?1:0)-(a.prio?1:0));
+  const prio=S.tasks.filter(t=>!t.done&&t.prio&&(!t.due||t.due>today)).slice(0,3);
+  const steps=S.steps.filter(s=>!s.done&&s.due&&daysUntil(fromIso(s.due))<=3).sort((a,b)=>a.due.localeCompare(b.due));
+  const soon=deadlines().filter(e=>{const n=daysUntil(e.start);return n>=0&&n<=14});
+  const dig=S.digests.find(d=>d.date===today);const last=dig||S.digests.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+  const nTasks=tasks.length+steps.length;
+  const lead=[lect.length?`${lect.length} ${lect.length===1?"Vorlesung":"Vorlesungen"}`:"keine Vorlesung",nTasks?`${nTasks} fällige ${nTasks===1?"Aufgabe":"Aufgaben"}`:"nichts fällig",dig?`${(dig.items||[]).length} ${(dig.items||[]).length===1?"Studien-Mail":"Studien-Mails"}`:null].filter(Boolean).join(" · ");
+  const evRow=e=>`<div class="item"><span class="tm">${e.allDay?"ganztägig":fTime(e.start)+"–"+fTime(e.end)}</span><div class="body"><div class="title">${esc(e.kind==="lecture"?short(e.title):e.title)}</div><div class="meta">${cChip(e.course)}${e.kind==="private"?'<span class="chip">privat</span>':""}${e.location?`<span>${esc(roomOf(e.location))}</span>${mapLink(e.location)}`:""}</div></div></div>`;
+  const sec=(title,right,body)=>`<div class="sec"><div class="label"><span>${title}</span><span>${right||""}</span></div>${body}</div>`;
+  return `<div class="panel hud"><div class="bh"><div><div class="label">Tages-Briefing · ${fDate(now,{weekday:"long",day:"2-digit",month:"long"})}</div><h2 id="b-title">Guten ${h<11?"Morgen":h<18?"Tag":"Abend"}, Lukas</h2><p class="lead">Heute: ${lead}.</p></div><button class="xbtn" data-brief="close" aria-label="Schließen">✕</button></div>
+  ${sec("Termine heute",ev.length||"",ev.length?ev.map(evRow).join(""):'<div class="empty">Heute stehen keine Termine an.</div>')}
+  ${sec("Aufgaben",nTasks||"",(tasks.length||steps.length)?tasks.map(taskItem).join("")+steps.map(s=>`<div class="item"><input type="checkbox" class="check" data-toggle="steps/${s.id}" aria-label="Erledigt"><div class="body"><div class="title">${esc(s.title)}</div><div class="meta">${cChip(s.course)}<span>Plan-Schritt</span>${relDue(s.due)}</div></div></div>`).join(""):'<div class="empty">Nichts fällig oder überfällig.</div>')}
+  ${prio.length?sec("Wichtig, ohne Frist heute","",prio.map(taskItem).join("")):""}
+  ${soon.length?sec("Abgaben und Prüfungen in 14 Tagen","",soon.map(e=>{const n=daysUntil(e.start);return `<div class="item"><span class="tm">${n===0?"heute":n===1?"morgen":"in "+n+" T"}</span><div class="body"><div class="title">${esc(short(e.title))}</div><div class="meta">${cChip(e.course)}<span>${fDate(e.start)}</span></div></div></div>`}).join("")):""}
+  ${sec("Mails zum Studium",dig?"":"",last?`${dig?"":`<div class="notice" style="margin:4px 0 8px">Das Briefing von heute ist noch nicht da. Letzter Stand: ${fDate(fromIso(last.date),{weekday:"long",day:"2-digit",month:"2-digit"})}.</div>`}<div class="digest">${digestBody(last,5)}</div>`:'<div class="empty">Noch kein Mail-Briefing vorhanden.</div>')}
+  <div class="foot"><button class="btn primary" data-brief="close">Los geht’s</button></div></div>`;
+}
+function openBrief(){const b=$("#brief");b.innerHTML=briefingHTML();b.hidden=false;try{localStorage.setItem("sb-brief-seen",iso(new Date()))}catch(e){}const c=b.querySelector(".foot .btn");if(c)c.focus({preventScroll:true})}
+function closeBrief(){$("#brief").hidden=true}
+function maybeBrief(){if(!loaded||!$("#auth").hidden)return;let seen=null;try{seen=localStorage.getItem("sb-brief-seen")}catch(e){}if(seen!==iso(new Date()))openBrief()}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")maybeBrief()});
 function vWoche(){
   const start=sod(new Date());const days=[...Array(7)].map((_,i)=>new Date(start.getTime()+i*DAY));
   return `<div class="ph"><h1>Diese Woche</h1><span class="label">${fDate(days[0],{day:"2-digit",month:"2-digit"})} – ${fDate(days[6],{day:"2-digit",month:"2-digit"})}</span></div>
@@ -608,10 +646,11 @@ function render(){
   const qv=$("#q")?$("#q").value:"";const qf=document.activeElement&&document.activeElement.id==="q";
   const body={heute:vHeute,woche:vWoche,faecher:vFaecher,aufgaben:vAufgaben,notizen:vNotizen,mail:vMail}[view]();
   const h=new Date().getHours();
-  $("#main").innerHTML=`<div class="top"><div><div class="label">Semesterboard · M.Sc. Applied Business Innovation</div><h1>${view==="heute"?`Guten ${h<11?"Morgen":h<18?"Tag":"Abend"}, Lukas`:esc(VIEWS.find(v=>v[0]===view)[1])}</h1></div>
+  $("#main").innerHTML=`<div class="top"><div><div class="label">Semesterboard · M.Sc. Applied Business Innovation</div><h1>${view==="heute"?`Guten ${h<11?"Morgen":h<18?"Tag":"Abend"}, Lukas`:esc(VIEWS.find(v=>v[0]===view)[1])}</h1>${view==="heute"?'<button class="btn" data-brief="open" style="margin-top:8px">☀ Tages-Briefing</button>':""}</div>
     <form class="cmd" id="qf"><div class="in"><span class="prompt">›</span><input id="q" placeholder="Aufgabe, „Notiz: …“ oder Ansicht öffnen" autocomplete="off" aria-label="Befehlsfeld"><span class="kbd">Strg K</span></div><div class="hint" id="qhint"></div></form></div>
     ${!navigator.onLine?'<div class="notice">Offline: Du siehst den letzten Stand. Änderungen gehen erst wieder mit Verbindung.</div>':""}${body}`;
   $("#q").value=qv;if(qf)$("#q").focus();quickHint();drawCharts();
+  const b=$("#brief");if(b&&!b.hidden){const sc=b.firstElementChild?b.firstElementChild.scrollTop:0;b.innerHTML=briefingHTML();b.firstElementChild.scrollTop=sc}
 }
 
 /* ---------- Tooltip ---------- */
@@ -621,8 +660,10 @@ document.addEventListener("pointermove",e=>{const t=e.target.closest&&e.target.c
 
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
-  if(t.dataset.go)return go(t.dataset.go);
+  if(e.target.id==="brief")return closeBrief();
+  const t=e.target.closest("[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  if(t.dataset.brief)return t.dataset.brief==="open"?openBrief():closeBrief();
+  if(t.dataset.go){closeBrief();return go(t.dataset.go)}
   if(t.dataset.tl){tlRange=t.dataset.tl;try{localStorage.setItem("sb-tl",tlRange)}catch(err){};return render()}
   if(t.dataset.flen){if(F.running)return toast("Erst den laufenden Timer beenden.");F.len=+t.dataset.flen;F.left=F.len*60;return render()}
   if(t.dataset.focus){const a=t.dataset.focus;
@@ -647,7 +688,7 @@ document.addEventListener("change",e=>{
   if(t.id==="fcourse"){F.course=t.value;render()}
 });
 document.addEventListener("input",e=>{if(e.target.id==="q")quickHint()});
-document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#q").focus()}if(e.key==="Escape"&&document.activeElement.id==="q"){$("#q").value="";$("#q").blur();quickHint()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#brief").hidden){closeBrief();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#q").focus()}if(e.key==="Escape"&&document.activeElement.id==="q"){$("#q").value="";$("#q").blur();quickHint()}});
 document.addEventListener("submit",e=>{
   const f=e.target;if(f.id==="authform")return;e.preventDefault();
   if(f.id==="qf")return quickSubmit();
@@ -672,7 +713,7 @@ render();
 let channel=null;
 async function startData(){
   const dot=$("#syncdot"),txt=$("#synctext");$("#auth").hidden=true;$("#logout").hidden=false;
-  try{await Promise.all(COLS.map(load));loaded=true}catch(e){txt.textContent="Fehler";toast("Daten konnten nicht geladen werden.");return}
+  try{await Promise.all(COLS.map(load));loaded=true;render();maybeBrief()}catch(e){txt.textContent="Fehler";toast("Daten konnten nicht geladen werden.");return}
   const timers={};
   channel=sb.channel("board").on("postgres_changes",{event:"*",schema:"public"},p=>{const t=p.table;if(!COLS.includes(t))return;clearTimeout(timers[t]);timers[t]=setTimeout(()=>load(t).catch(()=>{}),250)})
     .subscribe(st=>{if(st==="SUBSCRIBED"){dot.classList.add("live");txt.textContent="Live"}else if(st==="CLOSED"||st==="CHANNEL_ERROR"||st==="TIMED_OUT"){dot.classList.remove("live");txt.textContent="Getrennt"}});
