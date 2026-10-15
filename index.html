@@ -129,6 +129,7 @@ main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;
 .prow .body{flex:1;min-width:0}.prow .title{font-weight:600;font-size:.9rem}.prow.old{opacity:.5}
 .pkind{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--warn)}.pkind.exam{color:#ff8a82}.pkind.interim{color:var(--accent)}
 .pmonth{margin-bottom:14px}
+.wknav{margin-left:auto}.wknav button{font-size:.85rem;padding:4px 12px}.day.past{opacity:.55}
 .trow{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.trow:first-child{border-top:0}
 .trow .body{flex:1;min-width:0;overflow-wrap:anywhere}.trow .title{font-weight:500}.trow .meta{font-size:.74rem;color:var(--ink3);display:flex;gap:8px;flex-wrap:wrap;margin-top:3px}
 .trow .due{font-family:var(--f-mono);font-size:.8rem;color:var(--ink2);white-space:nowrap;flex:none;text-align:right;min-width:74px}
@@ -329,7 +330,7 @@ const FCOLS=["fit_workouts","fit_meals","fit_weight","fit_goals"];
 const ALLC=[...COLS,...FCOLS];
 const SEM_START=new Date(2026,9,1), SEM_END=new Date(2027,1,15);
 const S={}; ALLC.forEach(c=>S[c]=[]);
-let lastEv=null, ringsDone=false, db=null, loaded=false, view="heute", courseId=null, taskFilter="offen", taskCourse="", noteCourse="", tlRange="sem", fTab="faecher";
+let lastEv=null, ringsDone=false, db=null, loaded=false, view="heute", courseId=null, taskFilter="offen", taskCourse="", noteCourse="", tlRange="sem", fTab="faecher", wkOff=0;
 const addOpen={task:false,note:false};
 const F={course:"",len:25,left:25*60,running:false,started:null,int:null};
 const isAlltag=v=>AVIEWS.some(x=>x[0]===v);
@@ -385,7 +386,7 @@ const add=(c,data,msg)=>write(()=>sb.from(c).insert(toRow(c,data)),msg,c);
 const upd=(c,id,data,msg)=>write(()=>sb.from(c).update(toRow(c,data)).eq("id",id),msg,c);
 const del=(c,id,msg)=>write(()=>sb.from(c).delete().eq("id",id),msg,c);
 /* ---------- Navigation ---------- */
-function go(v,cid){view=v;courseId=cid||null;lastOf[isAlltag(v)?"alltag":"uni"]=v;try{localStorage.setItem("sb-view",v)}catch(e){};render();window.scrollTo(0,0)}
+function go(v,cid){if(v==="woche"&&view!=="woche")wkOff=0;view=v;courseId=cid||null;lastOf[isAlltag(v)?"alltag":"uni"]=v;try{localStorage.setItem("sb-view",v)}catch(e){};render();window.scrollTo(0,0)}
 function renderNav(){
   const vs=isAlltag(view)?AVIEWS:VIEWS;document.body.classList.toggle("alltag",isAlltag(view));
   $("#tabbar").style.gridTemplateColumns=`repeat(${vs.length},1fr)`;
@@ -604,13 +605,15 @@ function closeBrief(){$("#brief").hidden=true}
 function maybeBrief(){if(!loaded||!$("#auth").hidden)return;let seen=null;try{seen=localStorage.getItem("sb-brief-seen")}catch(e){}if(seen!==iso(new Date()))openBrief()}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")maybeBrief()});
 function vWoche(){
-  const start=sod(new Date());const days=[...Array(7)].map((_,i)=>new Date(start.getTime()+i*DAY));
-  return `<div class="ph"><h1>Diese Woche</h1><span class="label">${fDate(days[0],{day:"2-digit",month:"2-digit"})} – ${fDate(days[6],{day:"2-digit",month:"2-digit"})}</span></div>
+  const start=addDays(monday(new Date()),7*wkOff);const days=[...Array(7)].map((_,i)=>addDays(start,i));const today=sod(new Date()).getTime();
+  const title=wkOff===0?"Diese Woche":wkOff===1?"Nächste Woche":wkOff===-1?"Letzte Woche":wkOff>0?`In ${wkOff} Wochen`:`Vor ${-wkOff} Wochen`;
+  return `<div class="ph"><h1>${title}</h1><span class="label">KW ${kw(start)} · ${fDate(days[0],{day:"2-digit",month:"2-digit"})} – ${fDate(days[6],{day:"2-digit",month:"2-digit"})}</span>
+    <div class="seg wknav" role="group" aria-label="Woche wählen"><button data-wk="-1" aria-label="Vorige Woche">‹</button><button data-wk="0" aria-pressed="${wkOff===0}">Heute</button><button data-wk="1" aria-label="Nächste Woche">›</button></div></div>
   <div class="week">${days.map((d,i)=>{
     const ev=S.events.filter(e=>sod(e.start).getTime()===d.getTime()).sort((a,b)=>new Date(a.start)-new Date(b.start));
     const ts=S.tasks.filter(t=>!t.done&&t.due===iso(d));const st=S.steps.filter(s=>!s.done&&s.due===iso(d));
     const hrs=ev.filter(e=>!e.allDay).reduce((a,e)=>a+(new Date(e.end)-new Date(e.start))/36e5,0);const load=Math.min(8,Math.round(hrs+ts.length+st.length));
-    return `<div class="day${i===0?" is-today":""}"><h3><span>${fDate(d,{weekday:"short"})}</span><span class="num faint">${fDate(d,{day:"2-digit",month:"2-digit"})}</span></h3>
+    return `<div class="day${d.getTime()===today?" is-today":""}${d.getTime()<today?" past":""}"><h3><span>${fDate(d,{weekday:"short"})}</span><span class="num faint">${fDate(d,{day:"2-digit",month:"2-digit"})}</span></h3>
       <div class="loadbar" ${tipAttr(`<b>Auslastung</b><br>${hrs.toLocaleString("de-DE",{maximumFractionDigits:1})} h Termine · ${ts.length+st.length} fällige Einträge`)}>${[...Array(8)].map((_,k)=>`<i class="${k<load?"on":""}"></i>`).join("")}</div>
       ${ev.map(eventLine).join("")}
       ${ts.map(t=>`<div class="ev" style="--cc:${cvar(t.course)}"><div class="tm">Aufgabe</div><div>${t.prio?'<span class="flag">▲ </span>':""}${esc(t.title)}</div></div>`).join("")}
@@ -896,7 +899,7 @@ document.addEventListener("pointermove",e=>{const t=e.target.closest&&e.target.c
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click",e=>{
   if(e.target.id==="brief")return closeBrief();
-  const t=e.target.closest("[data-wopen],[data-mode],[data-wr],[data-fday],[data-reeat],[data-wrep],[data-evdel],[data-refresh],[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-ftab],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  const t=e.target.closest("[data-wopen],[data-mode],[data-wr],[data-fday],[data-reeat],[data-wrep],[data-evdel],[data-refresh],[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-ftab],[data-wk],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
   if(t.dataset.evdel){const id=t.dataset.evdel;clearTimeout(pendingT);
     if(pendingDel===id){pendingDel=null;if(lastEv===id)lastEv=null;return del("events",id,"Termin gelöscht")}
     pendingDel=id;render();pendingT=setTimeout(()=>{pendingDel=null;render()},4000);return}
@@ -911,6 +914,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.add){const k=t.dataset.add;addOpen[k]=!addOpen[k];render();if(addOpen[k]){const i=document.querySelector({task:"#t-title",note:"[data-addnote=''] textarea",workout:"#f-workout [name=title]",meal:"#f-meal [name=title]"}[k]);if(i)i.focus()}return}
   if(t.dataset.brief)return t.dataset.brief==="open"?openBrief():closeBrief();
   if(t.dataset.go){closeBrief();return go(t.dataset.go)}
+  if(t.dataset.wk!==undefined){wkOff=+t.dataset.wk===0?0:wkOff+(+t.dataset.wk);return render()}
   if(t.dataset.ftab){fTab=t.dataset.ftab;try{localStorage.setItem("sb-ftab",fTab)}catch(err){};return render()}
   if(t.dataset.tl){tlRange=t.dataset.tl;try{localStorage.setItem("sb-tl",tlRange)}catch(err){};return render()}
   if(t.dataset.flen){if(F.running)return toast("Erst den laufenden Timer beenden.");F.len=+t.dataset.flen;F.left=F.len*60;return render()}
