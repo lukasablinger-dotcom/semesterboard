@@ -124,6 +124,11 @@ main{padding-inline:clamp(16px,3.4vw,36px);padding-block:22px 110px;min-width:0;
 .plus{width:34px;height:34px;border-radius:10px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:1.25rem;line-height:1;cursor:pointer;display:grid;place-items:center;flex:none;transition:all .15s}
 .plus:hover,.plus[aria-expanded="true"]{background:var(--accent);color:var(--on-accent);box-shadow:0 0 16px rgba(111,227,245,.4)}
 .addbox{padding:12px 0 6px;border-bottom:1px solid var(--line)}.addbox .inline{margin:0}
+.prow{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.prow:first-of-type{border-top:0}
+.prow .pdate{flex:0 0 46px;text-align:center;border-left:3px solid var(--cc);padding-left:6px;line-height:1.1}.prow .pdate b{display:block;font-size:1.2rem}.prow .pdate span{font-size:.72rem;color:var(--ink3)}
+.prow .body{flex:1;min-width:0}.prow .title{font-weight:600;font-size:.9rem}.prow.old{opacity:.5}
+.pkind{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--warn)}.pkind.exam{color:#ff8a82}.pkind.interim{color:var(--accent)}
+.pmonth{margin-bottom:14px}
 .trow{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.trow:first-child{border-top:0}
 .trow .body{flex:1;min-width:0;overflow-wrap:anywhere}.trow .title{font-weight:500}.trow .meta{font-size:.74rem;color:var(--ink3);display:flex;gap:8px;flex-wrap:wrap;margin-top:3px}
 .trow .due{font-family:var(--f-mono);font-size:.8rem;color:var(--ink2);white-space:nowrap;flex:none;text-align:right;min-width:74px}
@@ -323,12 +328,12 @@ const FCOLS=["fit_workouts","fit_meals","fit_weight","fit_goals"];
 const ALLC=[...COLS,...FCOLS];
 const SEM_START=new Date(2026,9,1), SEM_END=new Date(2027,1,15);
 const S={}; ALLC.forEach(c=>S[c]=[]);
-let lastEv=null, ringsDone=false, db=null, loaded=false, view="heute", courseId=null, taskFilter="offen", taskCourse="", noteCourse="", tlRange="sem";
+let lastEv=null, ringsDone=false, db=null, loaded=false, view="heute", courseId=null, taskFilter="offen", taskCourse="", noteCourse="", tlRange="sem", fTab="faecher";
 const addOpen={task:false,note:false};
 const F={course:"",len:25,left:25*60,running:false,started:null,int:null};
 const isAlltag=v=>AVIEWS.some(x=>x[0]===v);
 const lastOf={uni:"heute",alltag:"alltag"};
-try{const v=localStorage.getItem("sb-view"); if(v&&(VIEWS.some(x=>x[0]===v)||isAlltag(v))) view=v; const r=localStorage.getItem("sb-tl"); if(r==="sem"||r==="wk") tlRange=r;}catch(e){}
+try{const v=localStorage.getItem("sb-view"); if(v&&(VIEWS.some(x=>x[0]===v)||isAlltag(v))) view=v; const r=localStorage.getItem("sb-tl"); if(r==="sem"||r==="wk") tlRange=r; if(localStorage.getItem("sb-ftab")==="pruef") fTab="pruef";}catch(e){}
 
 /* ---------- Hilfen ---------- */
 const $=s=>document.querySelector(s);
@@ -349,12 +354,14 @@ const relDue=s=>{if(!s)return"";const n=daysUntil(fromIso(s));if(n<0)return`<spa
 const urg=n=>n<=7?"crit":n<=21?"warn":"";
 const mapLink=loc=>loc&&!/zoom/i.test(loc)?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}" target="_blank" rel="noopener">Route ↗</a>`:"";
 const roomOf=loc=>loc?loc.split(",")[0]:"";
-const short=t=>t.replace(/^M 1\.\d+\s*/,"").replace(/^(ABGABE|PRÜFUNG)\s*/,"");
+const short=t=>t.replace(/^M 1\.\d+\s*/,"").replace(/^(ZWISCHENABGABE|ZWISCHENPRÄSENTATION|ABGABE|PRÜFUNG)\s*/,"");
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2200)}
 const upcomingEvents=()=>S.events.filter(e=>new Date(e.end||e.start)>=new Date()).sort((a,b)=>new Date(a.start)-new Date(b.start));
 const isTimed=e=>!e.allDay&&["lecture","other","private","own"].includes(e.kind);
 const nextLecture=cid=>upcomingEvents().find(e=>e.kind==="lecture"&&(!cid||e.course===cid));
-const deadlines=()=>upcomingEvents().filter(e=>e.kind==="deadline"||e.kind==="exam");
+const DUE_KINDS=["deadline","exam","interim"],isDue=e=>DUE_KINDS.includes(e.kind);
+const kindLabel=k=>k==="exam"?"Prüfung":k==="interim"?"Zwischentermin":"Abgabe";
+const deadlines=()=>upcomingEvents().filter(isDue);
 const stepsOf=cid=>S.steps.filter(s=>s.course===cid).sort((a,b)=>(a.order??0)-(b.order??0));
 function progressOf(cid){const st=stepsOf(cid);if(!st.length)return null;return Math.round(100*st.filter(s=>s.done).length/st.length)}
 const minutesOf=cid=>S.timelog.filter(t=>t.course===cid).reduce((a,t)=>a+(t.minutes||0),0);
@@ -397,7 +404,7 @@ function countdownStrip(cid){
   const ds=deadlines().filter(e=>!cid||e.course===cid);
   if(!ds.length)return'<div class="empty">Keine anstehenden Abgaben oder Prüfungen.</div>';
   return `<div class="countdowns">${ds.map(e=>{const n=daysUntil(e.start);const total=Math.max(1,(sod(e.start)-SEM_START)/DAY);const p=Math.min(100,Math.max(0,100*(1-n/total)));const u=urg(n);
-    return `<button class="cd ${u}" style="--cc:${cvar(e.course)};--p:${p}%" ${e.course?`data-course="${e.course}"`:""}><h3 style="font-size:.92rem;line-height:1.25">${esc(course(e.course)?course(e.course).short:short(e.title))}</h3><div class="label" style="margin:2px 0 8px">${e.kind==="exam"?"Prüfung":"Abgabe"} · ${fDate(e.start,{day:"2-digit",month:"2-digit"})}</div><div class="days">${n}<span>${n===1?"Tag":"Tage"}</span></div><div class="t">${esc(short(e.title))}</div>${u?`<div class="st">${u==="crit"?"⚠ Kritisch":"● Bald"}</div>`:""}</button>`}).join("")}</div>`;
+    return `<button class="cd ${u}" style="--cc:${cvar(e.course)};--p:${p}%" ${e.course?`data-course="${e.course}"`:""}><h3 style="font-size:.92rem;line-height:1.25">${esc(course(e.course)?course(e.course).short:short(e.title))}</h3><div class="label" style="margin:2px 0 8px">${kindLabel(e.kind)} · ${fDate(e.start,{day:"2-digit",month:"2-digit"})}</div><div class="days">${n}<span>${n===1?"Tag":"Tage"}</span></div><div class="t">${esc(short(e.title))}</div>${u?`<div class="st">${u==="crit"?"⚠ Kritisch":"● Bald"}</div>`:""}</button>`}).join("")}</div>`;
 }
 const gstamp=d=>new Date(d).toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
 function gcalUrl(e){const c=course(e.course);const q=new URLSearchParams({action:"TEMPLATE",text:e.title,dates:gstamp(e.start)+"/"+gstamp(e.end||e.start),details:(c?c.code+" "+c.short+"\n":"")+"Aus dem Semesterboard",location:e.location||""});return "https://calendar.google.com/calendar/render?"+q}
@@ -418,7 +425,7 @@ function weekList(){
     const ev=S.events.filter(e=>e.kind!=="holiday"&&sod(e.start).getTime()===d.getTime()).sort((a,b)=>(b.allDay?1:0)-(a.allDay?1:0)||new Date(a.start)-new Date(b.start));
     const hol=S.events.find(e=>e.kind==="holiday"&&sod(e.start).getTime()===d.getTime());
     return `<div class="wkd${d.getTime()===today.getTime()?" today":d<today?" past":""}"><div><div class="dn">${fDate(d,{weekday:innerWidth<560?"short":"long"})}</div><div class="dd">${fDate(d,{day:"2-digit",month:"2-digit"})}</div></div><div>${
-      ev.length?ev.map(e=>{const c=course(e.course);const dl=e.kind==="deadline"||e.kind==="exam";const name=dl?short(e.title):c?c.short:e.title;
+      ev.length?ev.map(e=>{const c=course(e.course);const dl=isDue(e);const name=dl?short(e.title):c?c.short:e.title;
         return `<div class="wke${dl?" dl":""}" style="--cc:${cvar(e.course)}"${c?` data-course="${c.id}"`:""} ${tipAttr(`<b>${esc(e.title)}</b>${e.location?"<br>"+esc(e.location):""}`)}><span class="t">${e.allDay?"ganztägig":fTime(e.start)+"–"+fTime(e.end)}</span><span><span class="n">${esc(name)}</span>${e.kind==="private"?'<span class="r">privat</span>':""}${e.location?`<span class="r">${esc(roomOf(e.location))}</span>`:""}</span></div>`}).join(""):`<div class="free">${hol?esc(hol.title):"Frei"}</div>`}</div></div>`}).join("")}</div>`;
 }
 function chartTimeline(el){
@@ -437,7 +444,7 @@ function chartTimeline(el){
   S.events.forEach(e=>{const i=cs.findIndex(c=>c.id===e.course);if(i<0)return;const d=new Date(e.start);if(d<x0||d>x1)return;
     const x=X(d),y=T+i*RH+RH/2,col=cvar(e.course),past=d<today;
     const tip=`<b>${esc(short(e.title)||e.title)}</b><br>${fDate(d,{weekday:"long",day:"2-digit",month:"long"})}${e.allDay?"":" · "+fTime(e.start)}${e.location?"<br>"+esc(roomOf(e.location)):""}`;
-    let mk;if(e.kind==="deadline"||e.kind==="exam"){mk=`<path class="mk" d="M${x} ${y-8}L${x+8} ${y}L${x} ${y+8}L${x-8} ${y}Z" fill="${e.kind==="exam"?"var(--bg)":col}" stroke="${col}" stroke-width="2.5"/>`}
+    let mk;if(isDue(e)){mk=`<path class="mk" d="M${x} ${y-8}L${x+8} ${y}L${x} ${y+8}L${x-8} ${y}Z" fill="${e.kind==="exam"?"var(--bg)":col}" stroke="${col}" stroke-width="2.5"/>`}
     else mk=`<circle class="mk" cx="${x}" cy="${y}" r="${tlRange==="wk"?7:4.5}" fill="${col}" stroke="var(--panel)" stroke-width="2" opacity="${past?.35:1}"/>`;
     g+=`<g class="hit" data-course="${e.course}" data-tip="${esc(tip)}"><circle cx="${x}" cy="${y}" r="11" fill="transparent"/>${mk}</g>`});
   el.innerHTML=`<svg width="${W}" height="${H+14}" role="img" aria-label="Semester-Zeitleiste mit Vorlesungen, Abgaben und Prüfungen je Fach">${g}</svg>`;
@@ -612,14 +619,29 @@ function vWoche(){
     <form class="inline" id="f-event"><input type="text" id="ev-title" placeholder="z. B. Teamtreffen Research Methods" required><input type="date" id="ev-date" required><input type="time" id="ev-from" value="10:00" aria-label="Beginn"><input type="time" id="ev-to" value="11:00" aria-label="Ende"><input type="text" id="ev-loc" placeholder="Ort"><select id="ev-course">${courseOptions("")}</select><button class="btn primary">Speichern</button></form>
     <p class="faint" style="font-size:.78rem;margin:8px 0 0">Private Termine aus deinem Google Kalender übernimmt die Morgen-Routine automatisch, nur lesend.</p></section>`;
 }
+function dueWhen(n){return n<0?"vorbei":n===0?"heute":n===1?"morgen":`in ${n} Tagen`}
+function vPruef(){
+  const all=S.events.filter(isDue).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  if(!all.length)return'<div class="empty">Noch keine Prüfungstermine eingetragen.</div>';
+  const today=sod(new Date());const up=all.filter(e=>sod(new Date(e.end||e.start))>=today),past=all.filter(e=>!up.includes(e));
+  const groups={};up.forEach(e=>{const k=fDate(e.start,{month:"long",year:"numeric"});(groups[k]=groups[k]||[]).push(e)});
+  const row=(e,old)=>{const c=course(e.course);const n=daysUntil(e.start);const d=new Date(e.start);
+    return `<div class="prow${old?" old":""}" style="--cc:${cvar(e.course)}"><div class="pdate"><b>${d.getDate()}.</b><span>${fDate(d,{weekday:"short"})}</span></div>
+      <div class="body"><div class="title">${esc(c?c.name:short(e.title))}</div><div class="muted" style="font-size:.8rem"><span class="pkind ${e.kind}">${kindLabel(e.kind)}</span> ${esc(short(e.title))}${e.allDay?"":` · ${fTime(e.start)} Uhr`}${e.location?` · ${esc(roomOf(e.location))}`:""}</div></div>
+      <span class="chip ${old?"":urg(n)}">${dueWhen(old?-1:n)}</span></div>`};
+  return Object.entries(groups).map(([m,es])=>`<section class="panel pmonth"><div class="ph"><h2>${esc(m)}</h2><span class="num">${es.length}</span></div>${es.map(e=>row(e,false)).join("")}</section>`).join("")
+    +(past.length?`<section class="panel pmonth"><div class="ph"><h2>Vorbei</h2><span class="num">${past.length}</span></div>${past.reverse().map(e=>row(e,true)).join("")}</section>`:"");
+}
 function vFaecher(){
   if(courseId)return vFach(course(courseId));
-  return `<div class="ph"><h1>Fächer</h1><span class="label">1. Semester · 30 ECTS</span></div>
+  const seg=`<div class="seg" role="group" aria-label="Ansicht"><button data-ftab="faecher" aria-pressed="${fTab==="faecher"}">Fächer</button><button data-ftab="pruef" aria-pressed="${fTab==="pruef"}">Prüfungstermine</button></div>`;
+  if(fTab==="pruef")return `<div class="ph"><h1>Prüfungstermine</h1>${seg}</div>${vPruef()}`;
+  return `<div class="ph"><h1>Fächer</h1><span class="label">1. Semester · 30 ECTS</span>${seg}</div>
   <div class="courses">${sortedCourses().map(c=>{
     const nl=nextLecture(c.id);const dl=deadlines().find(e=>e.course===c.id);const p=progressOf(c.id);
     return `<button class="panel course" style="--cc:${cvar(c.id)}" data-course="${c.id}"><div class="row" style="justify-content:space-between;width:100%;flex-wrap:nowrap"><div style="min-width:0"><div class="code"><i></i>${esc(c.code)} · ${esc(c.exam)}</div><h3 style="margin-top:4px">${esc(c.name)}</h3></div>${ringSVG(p,cvar(c.id),62,6)}</div>
       <div style="font-size:.84rem" class="muted">${nl?`Nächste Vorlesung <b style="color:var(--ink)">${fDate(nl.start)} ${fTime(nl.start)}</b> · ${esc(roomOf(nl.location))}`:"Keine weiteren Vorlesungen"}</div>
-      <div class="row">${dl?`<span class="chip ${urg(daysUntil(dl.start))}">${dl.kind==="exam"?"Prüfung":"Abgabe"} in ${daysUntil(dl.start)} Tagen</span>`:""}<span class="chip">${fmtH(minutesOf(c.id))} h gelernt</span></div></button>`}).join("")||'<div class="empty">Fächer werden geladen …</div>'}</div>`;
+      <div class="row">${dl?`<span class="chip ${urg(daysUntil(dl.start))}">${kindLabel(dl.kind)} in ${daysUntil(dl.start)} Tagen</span>`:""}<span class="chip">${fmtH(minutesOf(c.id))} h gelernt</span></div></button>`}).join("")||'<div class="empty">Fächer werden geladen …</div>'}</div>`;
 }
 function vFach(c){
   if(!c)return'<div class="empty">Fach nicht gefunden.</div>';
@@ -872,7 +894,7 @@ document.addEventListener("pointermove",e=>{const t=e.target.closest&&e.target.c
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click",e=>{
   if(e.target.id==="brief")return closeBrief();
-  const t=e.target.closest("[data-mode],[data-wr],[data-fday],[data-reeat],[data-wrep],[data-evdel],[data-refresh],[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
+  const t=e.target.closest("[data-mode],[data-wr],[data-fday],[data-reeat],[data-wrep],[data-evdel],[data-refresh],[data-add],[data-brief],[data-go],[data-course],[data-del],[data-tf],[data-time],[data-lit],[data-accept],[data-backplan],[data-tl],[data-ftab],[data-flen],[data-focus],[data-focusfor]");if(!t)return;
   if(t.dataset.evdel){const id=t.dataset.evdel;clearTimeout(pendingT);
     if(pendingDel===id){pendingDel=null;if(lastEv===id)lastEv=null;return del("events",id,"Termin gelöscht")}
     pendingDel=id;render();pendingT=setTimeout(()=>{pendingDel=null;render()},4000);return}
@@ -886,6 +908,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.add){const k=t.dataset.add;addOpen[k]=!addOpen[k];render();if(addOpen[k]){const i=document.querySelector({task:"#t-title",note:"[data-addnote=''] textarea",workout:"#f-workout [name=title]",meal:"#f-meal [name=title]"}[k]);if(i)i.focus()}return}
   if(t.dataset.brief)return t.dataset.brief==="open"?openBrief():closeBrief();
   if(t.dataset.go){closeBrief();return go(t.dataset.go)}
+  if(t.dataset.ftab){fTab=t.dataset.ftab;try{localStorage.setItem("sb-ftab",fTab)}catch(err){};return render()}
   if(t.dataset.tl){tlRange=t.dataset.tl;try{localStorage.setItem("sb-tl",tlRange)}catch(err){};return render()}
   if(t.dataset.flen){if(F.running)return toast("Erst den laufenden Timer beenden.");F.len=+t.dataset.flen;F.left=F.len*60;return render()}
   if(t.dataset.focus){const a=t.dataset.focus;
