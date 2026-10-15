@@ -335,7 +335,7 @@ const addOpen={task:false,note:false};
 const F={course:"",len:25,left:25*60,running:false,started:null,int:null};
 const isAlltag=v=>AVIEWS.some(x=>x[0]===v);
 const lastOf={uni:"heute",alltag:"alltag"};
-try{const v=localStorage.getItem("sb-view"); if(v&&(VIEWS.some(x=>x[0]===v)||isAlltag(v))) view=v; const r=localStorage.getItem("sb-tl"); if(r==="sem"||r==="wk") tlRange=r; if(localStorage.getItem("sb-ftab")==="pruef") fTab="pruef";}catch(e){}
+try{const r=localStorage.getItem("sb-tl"); if(r==="sem"||r==="wk") tlRange=r; if(localStorage.getItem("sb-ftab")==="pruef") fTab="pruef";}catch(e){}
 
 /* ---------- Hilfen ---------- */
 const $=s=>document.querySelector(s);
@@ -386,7 +386,7 @@ const add=(c,data,msg)=>write(()=>sb.from(c).insert(toRow(c,data)),msg,c);
 const upd=(c,id,data,msg)=>write(()=>sb.from(c).update(toRow(c,data)).eq("id",id),msg,c);
 const del=(c,id,msg)=>write(()=>sb.from(c).delete().eq("id",id),msg,c);
 /* ---------- Navigation ---------- */
-function go(v,cid){if(v==="woche"&&view!=="woche")wkOff=0;view=v;courseId=cid||null;lastOf[isAlltag(v)?"alltag":"uni"]=v;try{localStorage.setItem("sb-view",v)}catch(e){};render();window.scrollTo(0,0)}
+function go(v,cid){if(v==="woche"&&view!=="woche")wkOff=0;view=v;courseId=cid||null;lastOf[isAlltag(v)?"alltag":"uni"]=v;render();window.scrollTo(0,0)}
 function renderNav(){
   const vs=isAlltag(view)?AVIEWS:VIEWS;document.body.classList.toggle("alltag",isAlltag(view));
   $("#tabbar").style.gridTemplateColumns=`repeat(${vs.length},1fr)`;
