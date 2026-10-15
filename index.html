@@ -264,6 +264,7 @@ textarea{resize:vertical}
 body.alltag{--accent:#B6F36A;--accent2:#7CCB3E;--accent-soft:rgba(182,243,106,.12);--on-accent:#0F1A05}
 .mode{flex:none}.mode button{padding:7px 14px;font-size:.8rem}
 .topr{display:flex;gap:10px;align-items:center;flex:none}
+.quote{margin:0;padding:2px 0 2px 16px;border-left:3px solid var(--accent);font-family:var(--f-display);font-size:clamp(1.05rem,2.4vw,1.35rem);font-weight:600;letter-spacing:.02em;color:var(--ink);text-shadow:0 0 18px rgba(182,243,106,.25)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:18px}
 .kpi{display:flex;gap:12px;align-items:center;min-width:0}
 .kpi .big{font-family:var(--f-mono);font-size:1.9rem;font-weight:500;line-height:1.05}
@@ -807,6 +808,7 @@ function vAlltag(){
   const plan=plannedW(),next=plan.find(w=>w.date>=today);
   const kp=g.kcalTarget?Math.round(100*kin/g.kcalTarget):null;
   return `<div class="grid">
+  <blockquote class="quote s12">If you don’t change it, you choose it.</blockquote>
   <section class="panel hud s12"><div class="kpis">
     <div class="kpi">${ringSVG(kp==null?null:Math.min(100,kp),kp>100?"var(--serious)":"var(--accent)",72,7,kp==null?"–":kp+"%")}<div><div class="label">Heute gegessen</div><div class="big">${num(kin)}<small>kcal</small></div><div class="sub">${g.kcalTarget?"Ziel "+num(g.kcalTarget)+" kcal":"Ziel unten festlegen"}</div></div></div>
     <div class="kpi"><div><div class="label">Bilanz heute</div><div class="big ${out==null?"":kin-out>0?"up":"down"}">${out==null?"–":(kin-out>0?"+":"−")+num(Math.abs(kin-out))}<small>kcal</small></div><div class="sub">${out==null?"Grundverbrauch unten eintragen":"Verbrauch "+num(out)+" kcal"}</div></div></div>
